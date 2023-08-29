@@ -1,11 +1,11 @@
 seed: 0
-dataset: BF-C2DL-HSC
+dataset: BF-C2DL-MuSC
 model: UNet2D
 device: cuda
 id: lr1e-4_mse1_perc1_dice100_channels64_ wbce-positive-frac0.15
 checkpoint_freq: 100
 model_arguments:
-  channels: 64
+  channels: 32
   img_channels: 1
 optimizer_arguments:
   epochs: 500
