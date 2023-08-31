@@ -234,10 +234,10 @@ class CTCDataset(Dataset):
                     seg = resize(seg, self.im_size, self.im_size)
                     
                 seg = seg[np.newaxis, :, :, np.newaxis]
-
-            seg = np.transpose(seg, (3, 0, 2, 1))
+            
+            seg = np.transpose(seg > 0, (3, 0, 2, 1))
             seg = torch.tensor(seg.astype(np.int16)).long().to(self.device)
-                        
+                
             segs.append(seg)
             
         segs = torch.stack(segs)
