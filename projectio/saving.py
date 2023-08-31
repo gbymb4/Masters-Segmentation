@@ -80,6 +80,9 @@ def save_history_dict_and_model(
 
     save_dir = os.path.join(save_model_dir, id)
     if not os.path.isdir(save_dir): os.mkdir(save_dir)
+    
+    checkpoint_dir = os.path.join(save_dir, 'model_checkpoints')
+    if not os.path.isdir(checkpoint_dir): os.mkdir(checkpoint_dir)
 
     with open(os.path.join(save_dir, 'history.json'), 'w') as file:
         json.dump(history, file)
@@ -90,4 +93,6 @@ def save_history_dict_and_model(
     for param in model.parameters():
         param.requires_grad = True
 
-    torch.save(model.state_dict(), os.path.join(save_dir, 'model.pt'))
+    epoch = len(history)
+
+    torch.save(model.state_dict(), os.path.join(checkpoint_dir, f'model_{epoch}.pt'))
