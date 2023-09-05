@@ -44,7 +44,7 @@ def clean_outliers(pred, area_threshold=50):
         return clean_img(pred)
     if len(pred.shape) == 5:
         imgs = [clean_img(img) for img in pred]    
-        return torch.cat(imgs, dim=0)
+        return torch.stack(imgs, dim=0)
     
     
     

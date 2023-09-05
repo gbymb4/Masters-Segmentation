@@ -10,7 +10,7 @@ import torch
 
 import matplotlib.pyplot as plt
 
-from torch import nn
+from copy import deepcopy
 from pconfig import OUT_DIR
 from matplotlib.ticker import AutoMinorLocator
 
@@ -61,11 +61,12 @@ def plot_and_save_visual(img, true, pred, post_pred, fname):
     
     
 def save_history_dict_and_model(
-    dataset: str,
-    model: nn.Module,
-    id: int,
-    config: dict,
-    history: dict
+    dataset,
+    model,
+    id,
+    config,
+    history,
+    epoch
 ) -> None:
     dataset = dataset.lower()
     model_name = type(model).__name__
@@ -90,9 +91,7 @@ def save_history_dict_and_model(
     with open(os.path.join(save_dir, 'config.yaml'), 'w') as file:
         yaml.safe_dump(config, file)
         
-    for param in model.parameters():
+    for param in deepcopy(model).parameters():
         param.requires_grad = True
-
-    epoch = len(history)
 
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, f'model_{epoch}.pt'))

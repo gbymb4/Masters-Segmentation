@@ -134,7 +134,7 @@ def main():
         
     def checkpoint(history, epoch):
         if epoch % checkpoint_freq == 0:
-            save_history_dict_and_model(dataset, model, id, config_dict, history)
+            save_history_dict_and_model(dataset, model, id, config_dict, history, epoch)
             dump_metrics_plots(model, dataset, id, history)
     
     trainloader = load_train(dataset, dataset_kwargs, dataloader_kwargs)
@@ -143,7 +143,7 @@ def main():
     optim = DefaultOptimizer(seed, model, trainloader, validloader, device=device)
     history = optim.execute(**optim_kwargs)
         
-    save_history_dict_and_model(dataset, model, id, config_dict, history)
+    save_history_dict_and_model(dataset, model, id, config_dict, history, len(history))
         
     dump_metrics_plots(model, dataset, id, history)
     dump_visualisations(model, dataset, id, validloader, device)

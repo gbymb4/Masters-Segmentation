@@ -115,7 +115,7 @@ class DefaultOptimizer:
                 xs = xs.to(self.device)
                 ys = ys.to(self.device)
                 
-                batch_size = len(batch)
+                batch_size = len(xs)
 
                 optim.zero_grad()
 
@@ -161,7 +161,7 @@ class DefaultOptimizer:
                     xs = xs.to(self.device)
                     ys = ys.to(self.device)
                     
-                    batch_size = len(batch)
+                    batch_size = len(xs)
 
                     optim.zero_grad()
 
