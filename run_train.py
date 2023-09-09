@@ -84,7 +84,7 @@ def dump_visualisations(
         ys = ys.reshape(-1, *ys.shape[-2:])
         preds = preds.reshape(-1, *preds.shape[-2:])
         post_preds = post_preds.reshape(-1, *post_preds.shape[-2:])
-        
+                
         for x, y, pred, post_pred in zip(xs, ys, preds, post_preds):
             if plot_num is not None and num_saved >= plot_num: return
             
@@ -141,7 +141,7 @@ def main():
     validloader = load_valid(dataset, dataset_kwargs, dataloader_kwargs)
         
     optim = DefaultOptimizer(seed, model, trainloader, validloader, device=device)
-    history = optim.execute(**optim_kwargs)
+    history = optim.execute(**optim_kwargs, checkpoint_callback=checkpoint)
         
     save_history_dict_and_model(dataset, model, id, config_dict, history, len(history))
         
