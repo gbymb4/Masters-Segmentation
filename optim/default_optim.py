@@ -12,7 +12,7 @@ import numpy as np
 
 from torch import nn
 from torch.utils.data import DataLoader
-from postprocessing import full_postprocess, threshold
+from postprocessing import full_postprocess, threshold, split_segs_markers
 from .loss import CompositeLoss
 from .metrics import compute_all_metrics
 
@@ -129,7 +129,9 @@ class DefaultOptimizer:
                 train_loss = loss.item()
 
                 post_pred = threshold(pred)
-                metric_scores = compute_all_metrics(post_pred, ys)
+                post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
+                
+                metric_scores = compute_all_metrics(post_pred_segs, ys)
                         
                 for name, score in metric_scores.items():
                     if name not in metrics_dict.keys():
@@ -174,7 +176,9 @@ class DefaultOptimizer:
                     valid_loss = loss.item()
 
                     post_pred = full_postprocess(pred)
-                    metric_scores = compute_all_metrics(post_pred, ys)
+                    post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
+                    
+                    metric_scores = compute_all_metrics(post_pred_segs, ys)
                             
                     for name, score in metric_scores.items():
                         if name not in metrics_dict.keys():

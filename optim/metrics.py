@@ -9,7 +9,7 @@ from .loss import HardDiceLoss
 
 def accuracy(pred, true):
     pred = pred.reshape(-1)
-    true = true.bool().reshape(-1)
+    true = (true > 0).reshape(-1)
     
     correct = (pred == true).sum().item()
     total = len(pred)
@@ -20,7 +20,7 @@ def accuracy(pred, true):
 
 def sensitivity(pred, true):
     pred = pred.reshape(-1)
-    true = true.bool().reshape(-1)
+    true = (true > 0).reshape(-1)
     
     true_positives = (pred & true).sum().item()
     positives = true.sum().item()
@@ -31,7 +31,7 @@ def sensitivity(pred, true):
 
 def specificity(pred, true):
     pred = pred.reshape(-1)
-    true = true.bool().reshape(-1)
+    true = (true > 0).reshape(-1)
     
     true_negatives = (~pred & ~true).sum().item()
     negatives = (~true).sum().item()
@@ -42,7 +42,7 @@ def specificity(pred, true):
 
 def ppv(pred, true):
     pred = pred.reshape(-1)
-    true = true.bool().reshape(-1)
+    true = (true > 0).reshape(-1)
     
     true_positives = (pred & true).sum().item()
     model_positives = pred.sum().item()
@@ -53,7 +53,7 @@ def ppv(pred, true):
 
 def npv(pred, true):
     pred = pred.reshape(-1)
-    true = true.bool().reshape(-1)
+    true = (true > 0).reshape(-1)
     
     true_negatives = (~pred & ~true).sum().item()
     model_negatives = (~pred).sum().item()
@@ -71,7 +71,7 @@ def hard_dice(pred, true, epsilon=1e-7):
 
 def iou(pred, true):
     pred = pred.reshape(-1)
-    true = true.bool().reshape(-1)
+    true = (true > 0).reshape(-1)
 
     intersection = (pred & true).sum().item()
     union = (pred | true).sum().item()

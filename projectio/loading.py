@@ -17,7 +17,12 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from tqdm import tqdm
 from pconfig import DATA_ROOT
-from preprocessing import resolve_seg_conflicts, normalize, resize
+from preprocessing import (
+    resolve_seg_conflicts, 
+    normalize, 
+    resize,
+    get_markers
+)
 from .augmentation import (
     random_hflip,
     random_vflip,
@@ -235,9 +240,13 @@ class CTCDataset(Dataset):
                     
                 seg = seg[np.newaxis, :, :, np.newaxis]
             
-            seg = np.transpose(seg > 0, (3, 0, 2, 1))
+            seg = np.transpose(seg, (3, 0, 2, 1))
+            
+            markers = get_markers(seg)
+            
+            seg = np.concatenate((seg, markers), axis=1)            
             seg = torch.tensor(seg.astype(np.int16)).long().to(self.device)
-                
+
             segs.append(seg)
             
         segs = torch.stack(segs)

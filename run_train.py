@@ -11,7 +11,7 @@ import torch, random
 import numpy as np
 
 from optim import DefaultOptimizer
-from postprocessing import full_postprocess
+from postprocessing import full_postprocess, split_segs_markers
 from projectio import (
     load_train,
     load_valid,
@@ -79,14 +79,17 @@ def dump_visualisations(
         
         preds = model(xs)
         post_preds = full_postprocess(preds)
+        post_pred_segs, post_pred_markers = split_segs_markers(post_preds)
         
         xs = xs.reshape(-1, *xs.shape[-2:])
         ys = ys.reshape(-1, *ys.shape[-2:])
         preds = preds.reshape(-1, *preds.shape[-2:])
         post_preds = post_preds.reshape(-1, *post_preds.shape[-2:])
                 
-        for x, y, pred, post_pred in zip(xs, ys, preds, post_preds):
+        for x, y, pred, post_pred in zip(xs, ys, preds, post_pred_segs):
             if plot_num is not None and num_saved >= plot_num: return
+            
+            y = y > 0
             
             plot_root = os.path.join(
                 OUT_DIR, 

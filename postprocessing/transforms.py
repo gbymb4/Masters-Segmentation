@@ -11,6 +11,14 @@ import numpy as np
 
 from scipy import ndimage
 
+def split_segs_markers(pred):
+    segs = pred[:, 0:1]
+    markers = pred[:, 1:]
+    
+    return segs, markers
+
+
+
 def threshold(pred, true_threshold=0.5):
     return (pred > true_threshold).bool()
 

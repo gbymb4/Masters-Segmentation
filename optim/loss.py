@@ -33,6 +33,8 @@ class SpatialWeightedBCELoss:
 
 
     def __call__(self, pred, true, epoch):
+        true = true > 0
+        
         if len(pred.shape) == 4:
             pred = pred.unsqueeze(dim=0)
             true = true.unsqueeze(dim=0)
@@ -64,6 +66,8 @@ class SoftDiceLoss:
         
 
     def __call__(self, pred, true):
+        true = true > 0
+        
         pred = pred.reshape(-1)
         true = true.reshape(-1)
         
@@ -86,6 +90,8 @@ class HardDiceLoss:
         
 
     def __call__(self, pred, true):
+        true = true > 0
+        
         pred = pred.reshape(-1)
         true = true.bool().reshape(-1)
         
@@ -118,6 +124,8 @@ class PerceptualR50Loss:
 
 
     def __call__(self, pred, true):
+        true = true > 0
+        
         pred = pred.reshape(pred.shape[0], -1, *pred.shape[-2:])
         true = true.reshape(true.shape[0], -1, *true.shape[-2:]).float()
         
@@ -181,6 +189,8 @@ class CompositeLoss:
     
     
     def __call__(self, pred, true, epoch):
+        true = true > 0
+        
         wbce = self.wbce_weight * self.wbce(pred, true, epoch)
         dice = self.dice_weight * self.dice(pred, true)
         perceptual = self.perc_weight * self.perceptual(pred, true)
@@ -196,7 +206,7 @@ def get_weight_maps(tensors):
     arrays = tensors.detach().cpu().numpy()
     arrays_shape = arrays.shape
     
-    arrays = arrays.reshape((-1, arrays_shape.shape[-2:]))
+    arrays = arrays.reshape((-1, *arrays_shape.shape[-2:]))
     
     # based on implementation from: https://github.com/CIVA-Lab/U-SE-ResNet-for-Cell-Tracking-Challenge/blob/main/SW/train_codes/data.py
     def weight_map(im):
