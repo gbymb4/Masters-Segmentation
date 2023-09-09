@@ -33,7 +33,7 @@ class SpatialWeightedBCELoss:
 
 
     def __call__(self, pred, true, epoch):
-        true = true > 0
+        true = (true > 0).long()
         
         if len(pred.shape) == 4:
             pred = pred.unsqueeze(dim=0)
@@ -66,7 +66,7 @@ class SoftDiceLoss:
         
 
     def __call__(self, pred, true):
-        true = true > 0
+        true = (true > 0).long()
         
         pred = pred.reshape(-1)
         true = true.reshape(-1)
@@ -90,7 +90,7 @@ class HardDiceLoss:
         
 
     def __call__(self, pred, true):
-        true = true > 0
+        true = (true > 0).long()
         
         pred = pred.reshape(-1)
         true = true.bool().reshape(-1)
@@ -123,8 +123,19 @@ class PerceptualR50Loss:
 
 
 
+    def __fit_channels(self, tensor):
+        first_channel = tensor[:, 0:1]
+        second_channel = tensor[:, 1:]
+        
+        extra_channel = (first_channel + second_channel) / 2
+        fitted_tensor = torch.cat((tensor, extra_channel), dim=1)
+        
+        return fitted_tensor
+
+
+
     def __call__(self, pred, true):
-        true = true > 0
+        true = (true > 0).long()
         
         pred = pred.reshape(pred.shape[0], -1, *pred.shape[-2:])
         true = true.reshape(true.shape[0], -1, *true.shape[-2:]).float()
@@ -137,8 +148,8 @@ class PerceptualR50Loss:
             pred = pred.reshape(pred.shape[0], -1, *pred.shape[-2:])
             true = true.reshape(true.shape[0], -1, *true.shape[-2:])
             
-        pred = pred.repeat(1, 3, 1, 1)
-        true = true.repeat(1, 3, 1, 1)
+        pred = self.__fit_channels(pred)
+        true = self.__fit_channels(true)
         
         pred_fmap = self.backbone(pred)
         true_fmap = self.backbone(true)
@@ -189,7 +200,7 @@ class CompositeLoss:
     
     
     def __call__(self, pred, true, epoch):
-        true = true > 0
+        true = (true > 0).long()
         
         wbce = self.wbce_weight * self.wbce(pred, true, epoch)
         dice = self.dice_weight * self.dice(pred, true)
@@ -206,7 +217,7 @@ def get_weight_maps(tensors):
     arrays = tensors.detach().cpu().numpy()
     arrays_shape = arrays.shape
     
-    arrays = arrays.reshape((-1, *arrays_shape.shape[-2:]))
+    arrays = arrays.reshape((-1, *arrays_shape[-2:]))
     
     # based on implementation from: https://github.com/CIVA-Lab/U-SE-ResNet-for-Cell-Tracking-Challenge/blob/main/SW/train_codes/data.py
     def weight_map(im):

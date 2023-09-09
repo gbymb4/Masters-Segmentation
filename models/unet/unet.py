@@ -89,7 +89,7 @@ class UNet2D(nn.Module):
         self.b17 = UNetBlock2D(channels * 2, channels)
         self.cn17 = nn.Conv3d(
             channels,
-            1,
+            2,
             kernel_size=(1, 1, 1),
             stride=(1, 1, 1),
             padding=(0, 0, 0),

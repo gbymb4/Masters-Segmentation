@@ -244,7 +244,7 @@ class CTCDataset(Dataset):
             
             markers = get_markers(seg)
             
-            seg = np.concatenate((seg, markers), axis=1)            
+            seg = np.concatenate((seg, markers), axis=0)            
             seg = torch.tensor(seg.astype(np.int16)).long().to(self.device)
 
             segs.append(seg)

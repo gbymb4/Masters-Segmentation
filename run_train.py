@@ -79,6 +79,9 @@ def dump_visualisations(
         
         preds = model(xs)
         post_preds = full_postprocess(preds)
+        
+        ys_segs, ys_markers = split_segs_markers(ys)
+        pred_segs, pred_markers = split_segs_markers(preds)
         post_pred_segs, post_pred_markers = split_segs_markers(post_preds)
         
         xs = xs.reshape(-1, *xs.shape[-2:])
@@ -86,7 +89,7 @@ def dump_visualisations(
         preds = preds.reshape(-1, *preds.shape[-2:])
         post_preds = post_preds.reshape(-1, *post_preds.shape[-2:])
                 
-        for x, y, pred, post_pred in zip(xs, ys, preds, post_pred_segs):
+        for x, y, pred, post_pred in zip(xs, ys_segs, pred_segs, post_pred_segs):
             if plot_num is not None and num_saved >= plot_num: return
             
             y = y > 0

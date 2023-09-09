@@ -124,14 +124,16 @@ class DefaultOptimizer:
 
                 pred = model(xs)
                 
-                loss = criterion(pred, ys)
+                loss = criterion(pred, ys, epoch)
                 loss.backward()
                 train_loss = loss.item()
 
                 post_pred = threshold(pred)
+                
+                ys_segs, ys_markers = split_segs_markers(ys)
                 post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
                 
-                metric_scores = compute_all_metrics(post_pred_segs, ys)
+                metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
                         
                 for name, score in metric_scores.items():
                     if name not in metrics_dict.keys():
@@ -172,13 +174,15 @@ class DefaultOptimizer:
 
                     pred = model(xs)
                     
-                    loss = criterion(pred, ys)
+                    loss = criterion(pred, ys, epoch)
                     valid_loss = loss.item()
 
                     post_pred = full_postprocess(pred)
+                    
+                    ys_segs, ys_markers = split_segs_markers(ys)
                     post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
                     
-                    metric_scores = compute_all_metrics(post_pred_segs, ys)
+                    metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
                             
                     for name, score in metric_scores.items():
                         if name not in metrics_dict.keys():

@@ -75,7 +75,7 @@ def get_markers(imgs, erosion=20):
     imgs = imgs.reshape((-1, *imgs_shape[-2:]))
     
     # based on implementation from: https://github.com/CIVA-Lab/U-SE-ResNet-for-Cell-Tracking-Challenge/blob/main/SW/train_codes/data.py
-    def markers(im, erosion):
+    def markers(im, erosion=erosion):
         lab = measure.label(im)
         markers = np.zeros_like(lab)
         
