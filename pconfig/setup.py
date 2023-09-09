@@ -8,7 +8,10 @@ Created on Mon Aug 28 16:11:51 2023
 import yaml
 
 from copy import deepcopy
-from models.unet import UNet2D, UNet3D
+from models.unet import (
+    UNet2D, UNet3D,
+    R2UNet2D, R2UNet3D
+)
 
 def parse_config(fname: str) -> dict:
     with open(fname, 'r') as file:
@@ -29,6 +32,10 @@ def prepare_config(
         model = UNet2D
     elif model_name.lower() == 'unet3d':
         model = UNet3D
+    elif model_name.lower() == 'r2unet2d':
+        model = R2UNet2D
+    elif model_name.lower() == 'r2unet3d':
+        model = R2UNet3D
     else:
         raise ValueError(f'invalid model type "{model_name}" in config file')
 
