@@ -142,8 +142,11 @@ class CTCDataset(Dataset):
         segs_sts = sorted(os.listdir(segs_st_dir))
         segs_gts = sorted(os.listdir(segs_gt_dir))
         
-        st_frames = [int(st[7:11]) for st in segs_sts]
-        gt_frames = set([int(gt[7:11]) for gt in segs_gts])
+        def get_id(fp):
+            return int(fp[7:].split('.')[0])
+        
+        st_frames = [get_id(st) for st in segs_sts]
+        gt_frames = set([get_id(gt) for gt in segs_gts])
         
         st_gts = []
         for st_frame in st_frames:
