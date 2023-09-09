@@ -67,6 +67,7 @@ class DefaultOptimizer:
         wbce_weight=1,
         dice_weight=100,
         perc_weight=1,
+        weight_power=5,
         verbose=True,
         checkpoint_callback=None,
         init_history = None
@@ -85,6 +86,8 @@ class DefaultOptimizer:
             wbce_weight=wbce_weight,
             dice_weight=dice_weight,
             perc_weight=perc_weight,
+            weight_power=weight_power,
+            epochs=epochs,
             device=self.device
         )
         

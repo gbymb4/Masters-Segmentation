@@ -14,6 +14,7 @@ optimizer_arguments:
   wbce_weight: 1
   dice_weight: 100
   perc_weight: 1
+  weight_power: 5
   wbce_positive_frac: 0.15
 dataset_arguments:
   device: cpu

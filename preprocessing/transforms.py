@@ -8,9 +8,8 @@ Created on Mon Aug 28 17:24:51 2023
 import numpy as np
 
 from scipy import ndimage
-from skimage import feature, morphology
+from skimage import morphology
 from skimage.transform import resize as r
-from skimage.measure import regionprops
 from .utils import find_closest_pairs, compute_centroids
 
 def resize(img, height, width):

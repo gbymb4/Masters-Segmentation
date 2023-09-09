@@ -7,24 +7,32 @@ Created on Mon Aug 28 16:13:06 2023
 
 import torch
 
+import numpy as np
+import scipy.ndimage as ndi
+
 from torch import nn
 from torchvision.models.resnet import resnet50, ResNet50_Weights
+from skimage import feature
 
-class WeightedBCELoss:
+class SpatialWeightedBCELoss:
 
     def __init__(
         self, 
         positive_weight, 
         positive_weight_frac=1,
+        epochs=500,
+        weight_power=5,
         epsilon=1e-7
     ):
         self.weight_frac = positive_weight_frac
         self.weight = positive_weight
+        self.epochs = epochs
+        self.weight_power = weight_power
         self.epsilon = epsilon
         
 
 
-    def __call__(self, pred, true):
+    def __call__(self, pred, true, epoch):
         if len(pred.shape) == 4:
             pred = pred.unsqueeze(dim=0)
             true = true.unsqueeze(dim=0)
@@ -35,8 +43,13 @@ class WeightedBCELoss:
         negative = (1 - true) * torch.log(1 - pred)
 
         total = positive + negative
+        
+        power = ((epoch / self.epochs) ** self.weight_power) 
+        
+        weight_map = get_weight_maps(true)
+        weight_map = weight_map ** power
 
-        loss_temp = total.sum()
+        loss_temp = (total * weight_map).sum()
         loss = (-1 / pred.shape[0]) * loss_temp
 
         return loss
@@ -134,6 +147,8 @@ class CompositeLoss:
         wbce_weight=1, 
         dice_weight=100, 
         perc_weight=1,
+        epochs=500,
+        weight_power=5,
         epsilon=1e-7,
         device='cpu'
     ):
@@ -146,9 +161,11 @@ class CompositeLoss:
         self.perceptual = self.__default_loss
         
         if self.wbce_weight > 0:
-            self.wbce = WeightedBCELoss(
+            self.wbce = SpatialWeightedBCELoss(
                 positive_weight, 
                 positive_weight_frac=wbce_positive_frac,
+                epochs=epochs,
+                weight_power=epochs,
                 epsilon=epsilon
             )
         if self.dice_weight > 0:
@@ -163,9 +180,35 @@ class CompositeLoss:
     
     
     
-    def __call__(self, pred, true):
-        wbce = self.wbce_weight * self.wbce(pred, true)
+    def __call__(self, pred, true, epoch):
+        wbce = self.wbce_weight * self.wbce(pred, true, epoch)
         dice = self.dice_weight * self.dice(pred, true)
         perceptual = self.perc_weight * self.perceptual(pred, true)
         
         return wbce + dice + perceptual
+    
+    
+    
+def get_weight_maps(tensors):
+    device = tensors.device
+    dtype = tensors.dtype
+    
+    arrays = tensors.detach().cpu().numpy()
+    arrays_shape = arrays.shape
+    
+    arrays = arrays.reshape((-1, arrays_shape.shape[-2:]))
+    
+    # based on implementation from: https://github.com/CIVA-Lab/U-SE-ResNet-for-Cell-Tracking-Challenge/blob/main/SW/train_codes/data.py
+    def weight_map(im):
+        borders = feature.canny(im, low_threshold=.1, use_quantiles=True)
+        dist_im = ndi.distance_transform_edt(1 - borders)
+        wdist = ((dist_im.max() - dist_im)/dist_im.max())
+        return wdist
+    
+    weight_map_vec = np.vectorize(weight_map, signature='(n,m)->(n,m)')
+    
+    weight_maps = weight_map_vec(arrays)
+    weight_maps = weight_maps.reshape(arrays_shape)
+    weight_maps = torch.tensor(weight_maps).type(dtype).to(device)
+    
+    return weight_maps
