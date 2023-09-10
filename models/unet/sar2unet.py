@@ -38,7 +38,7 @@ class SAR2UNet2D(R2UNet2D):
         out4_3 = out4_2 * out4_1
         out4_4 = out4_3 + out4_1
         
-        out5_1 = self.drrel5(out4_4)
+        out5_1 = self.rrel5(out4_4)
         out5_2 = self.att5(out5_1)
         out5_3 = out5_2 * out5_1
         out5_4 = out5_3 + out5_1
@@ -84,7 +84,7 @@ class SAR2UNet3D(R2UNet3D):
         out4_3 = out4_2 * out4_1
         out4_4 = out4_3 + out4_1
         
-        out5_1 = self.drrel5(out4_4)
+        out5_1 = self.rrel5(out4_4)
         out5_2 = self.att5(out5_1)
         out5_3 = out5_2 * out5_1
         out5_4 = out5_3 + out5_1
