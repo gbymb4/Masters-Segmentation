@@ -21,4 +21,4 @@ dataset_arguments:
   im_size: 512
   load_limit: ~
 dataloader_arguments:
-  batch_size: 8
+  batch_size: 4

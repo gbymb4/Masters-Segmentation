@@ -10,7 +10,8 @@ import yaml
 from copy import deepcopy
 from models.unet import (
     UNet2D, UNet3D,
-    R2UNet2D, R2UNet3D
+    R2UNet2D, R2UNet3D,
+    SAR2UNet2D, SAR2UNet3D
 )
 
 def parse_config(fname: str) -> dict:
@@ -36,6 +37,10 @@ def prepare_config(
         model = R2UNet2D
     elif model_name.lower() == 'r2unet3d':
         model = R2UNet3D
+    elif model_name.lower() == 'sar2unet2d':
+        model = SAR2UNet2D
+    elif model_name.lower() == 'sar2unet3d':
+        model = SAR2UNet3D
     else:
         raise ValueError(f'invalid model type "{model_name}" in config file')
 

@@ -1,6 +1,6 @@
 seed: 0
-dataset: Fluo-N2DL-HeLa
-model: R2UNet2D
+dataset: BF-C2DL-MuSC
+model: SAR2UNet2D
 device: cuda
 id: lr1e-4_mse1_perc1_dice100_channels64_ wbce-positive-frac0.15_wbce-weight-power5
 checkpoint_freq: 100
