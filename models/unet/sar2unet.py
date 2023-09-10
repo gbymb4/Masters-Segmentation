@@ -8,7 +8,7 @@ Created on Sun Sep 10 14:32:06 2023
 from .r2unet import R2UNet2D, R2UNet3D
 from .._core import AttentionBlock2D, AttentionBlock3D
 
-class SADualR2UNet2D(R2UNet2D):
+class SAR2UNet2D(R2UNet2D):
     
     def __init__(self, channels, img_channels=1):
         super().__init__(channels, img_channels)
@@ -54,7 +54,7 @@ class SADualR2UNet2D(R2UNet2D):
     
     
     
-class SADualR2UNet3D(R2UNet3D):
+class SAR2UNet3D(R2UNet3D):
     
     def __init__(self, channels, img_channels=1):
         super().__init__(channels, img_channels)
