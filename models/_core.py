@@ -12,7 +12,7 @@ from torch import nn
 # based on implementation from https://github.com/TsukamotoShuchi/RCNN/blob/master/rcnnblock.py
 class RCL2D(nn.Module):
     
-    def __init__(self, channels, steps=4):
+    def __init__(self, channels, steps=3):
         super().__init__()
         self.conv = nn.Conv3d(
             channels, 
@@ -171,8 +171,8 @@ class RRDL2D(nn.Module):
 
 class RCL3D(RCL2D):
     
-    def __init__(self, channels, steps=4):
-        super().__init__(channels, steps=4)
+    def __init__(self, channels, steps=3):
+        super().__init__(channels, steps=steps)
         
         self.conv = nn.Conv3d(
             channels, 
@@ -272,4 +272,81 @@ class RRDL3D(RRDL2D):
         
         self.b = RR3DBlock(out_channels)
         
+
+
+class AttentionBlock2D(nn.Module):
+    
+    def __init__(self, channels):
+        super().__init__()
         
+        self.rb1 = self.__residual_block(channels)
+        self.rb2 = self.__residual_block(channels)
+        self.rb3 = self.__residual_block(channels, final=True)
+        
+        self.skip = nn.Sequential(
+            nn.Conv3d(channels, channels, kernel_size=(1, 1, 1)),
+            nn.BatchNorm3d(channels),
+        )
+        
+        self.aout = nn.Sigmoid()
+        
+        
+        
+    def forward(self, x):
+        out1 = self.rb1(x) + x
+        out2 = self.rb2(out1) + out1
+        out3 = self.aout(self.rb3(out2) + self.skip(out2))
+        
+        return out3
+        
+        
+        
+    def __residual_block(self, channels, final=False):
+        layers = [
+            nn.Conv3d(channels, channels, kernel_size=(1, 1, 1)),
+            nn.BatchNorm3d(channels),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(
+                channels, 
+                channels, 
+                kernel_size=(1, 3, 3),
+                stride=(1, 1, 1),
+                padding=(0, 1, 1)
+            ),
+            nn.BatchNorm3d(channels),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(channels, channels, kernel_size=(1, 1, 1)),
+            nn.BatchNorm3d(channels)    
+        ]
+        
+        if not final:
+            layers.append(nn.ReLU(inplace=True))
+            
+        return nn.Sequential(*layers)
+    
+    
+    
+class AttentionBlock3D(AttentionBlock2D):
+    
+    def __residual_block(self, channels, final=False):
+        layers = [
+            nn.Conv3d(channels, channels, kernel_size=(1, 1, 1)),
+            nn.BatchNorm3d(channels),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(
+                channels, 
+                channels, 
+                kernel_size=(3, 3, 3),
+                stride=(1, 1, 1),
+                padding=(1, 1, 1)
+            ),
+            nn.BatchNorm3d(channels),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(channels, channels, kernel_size=(1, 1, 1)),
+            nn.BatchNorm3d(channels)    
+        ]
+        
+        if not final:
+            layers.append(nn.ReLU(inplace=True))
+            
+        return nn.Sequential(*layers)
