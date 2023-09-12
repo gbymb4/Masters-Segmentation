@@ -2,7 +2,7 @@ seed: 0
 dataset: Fluo-C2DL-Huh7
 model: UNet2D
 device: cuda
-id: lr1e-4_mse1_perc1_dice100_channels64_ wbce-positive-frac0.15_wbce-weight-power5
+id: lr1e-4_mse1_perc0_dice100_channels32_wbce-positive-frac0.15_wbce-weight-power5
 checkpoint_freq: 100
 model_arguments:
   channels: 32

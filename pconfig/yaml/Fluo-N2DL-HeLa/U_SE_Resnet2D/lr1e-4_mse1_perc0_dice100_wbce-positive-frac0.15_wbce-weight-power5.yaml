@@ -1,12 +1,14 @@
 seed: 0
-dataset: Fluo-C2DL-MSC
-model: UNet2D
+dataset: Fluo-N2DL-HeLa
+model: U_SE_Resnet2D
 device: cuda
-id: lr1e-4_mse1_perc0_dice100_channels32_wbce-positive-frac0.15_wbce-weight-power5
+id: lr1e-4_mse1_perc0_dice100_wbce-positive-frac0.15_wbce-weight-power5
 checkpoint_freq: 100
 model_arguments:
-  channels: 32
-  img_channels: 1
+  in_channels: 1
+  classes: 2
+  activation: sigmoid
+  encoder_weights: ~
 optimizer_arguments:
   epochs: 500
   lr: 0.0001
