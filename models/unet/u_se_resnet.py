@@ -24,6 +24,6 @@ class U_SE_Resnet2D(nn.Module):
         x = x.reshape(-1, 1, *shape[-2:])
 
         y = self.features(x)
-        y = y.reshape(shape)
+        y = y.reshape(*shape)
         
         return y

@@ -6,7 +6,7 @@ Created on Sun Sep 10 14:32:06 2023
 """
 
 from .r2unet import R2UNet2D, R2UNet3D
-from .._core import AttentionBlock2D, AttentionBlock3D
+from ._core import AttentionBlock2D, AttentionBlock3D
 
 class SAR2UNet2D(R2UNet2D):
     
