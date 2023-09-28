@@ -2,7 +2,7 @@ seed: 0
 dataset: Fluo-N2DH-GOWT1
 model: BiSE_MARM_UDet2D
 device: cuda
-id: lr1e-4_mse1_perc0_dice1_channels32_wbce-positive-frac1_wbce-weight-power7
+id: lr1e-4_mse1_perc0_dice1_channels32_wbce-positive-frac0.5_wbce-weight-power7
 checkpoint_freq: 100
 model_arguments:
   channels: 32
@@ -15,7 +15,7 @@ optimizer_arguments:
   dice_weight: 1
   perc_weight: 0
   weight_power: 7
-  wbce_positive_frac: 1
+  wbce_positive_frac: 0.5
 dataset_arguments:
   device: cpu
   im_size: 512
