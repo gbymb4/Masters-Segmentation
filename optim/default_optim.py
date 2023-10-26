@@ -113,7 +113,7 @@ class DefaultOptimizer:
             metrics_dict = {}
 
             for batch in self.train_loader:
-                xs, ys = batch
+                xs, ys, dists, qs = batch
                 
                 xs = xs.to(self.device)
                 ys = ys.to(self.device)
@@ -124,7 +124,7 @@ class DefaultOptimizer:
 
                 pred = model(xs)
                 
-                loss = criterion(pred, ys, epoch)
+                loss = criterion(pred, ys, epoch, dists, qs)
                 loss.backward()
                 train_loss = loss.item()
 
@@ -163,7 +163,7 @@ class DefaultOptimizer:
                 metrics_dict = {}
     
                 for batch in self.valid_loader:
-                    xs, ys = batch
+                    xs, ys, dists, qs = batch
                     
                     xs = xs.to(self.device)
                     ys = ys.to(self.device)
@@ -174,7 +174,7 @@ class DefaultOptimizer:
 
                     pred = model(xs)
                     
-                    loss = criterion(pred, ys, epoch)
+                    loss = criterion(pred, ys, epoch, dists, qs)
                     valid_loss = loss.item()
 
                     post_pred = full_postprocess(pred)

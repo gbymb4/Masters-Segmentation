@@ -13,6 +13,7 @@ import scipy.ndimage as ndi
 from torch import nn
 from torchvision.models.resnet import resnet50, ResNet50_Weights
 from skimage import feature
+from ._util import compute_coulomb_weightmaps
 
 class SpatialWeightedBCELoss:
 
@@ -32,7 +33,7 @@ class SpatialWeightedBCELoss:
         
 
 
-    def __call__(self, pred, true, epoch):
+    def __call__(self, pred, true, epoch, dists_arrays=None, qs=None):
         true = (true > 0).long()
         
         if len(pred.shape) == 4:
@@ -46,11 +47,20 @@ class SpatialWeightedBCELoss:
 
         total = positive + negative
         
-        power = ((epoch / self.epochs) ** self.weight_power) 
+        power = (1 + (epoch / self.epochs) * (self.weight_power - 1)) 
         
-        weight_map = get_weight_maps(true)
-        weight_map = weight_map ** power
-
+        weight_map = compute_coulomb_weightmaps(
+            true,
+            p=power, 
+            dists_arrays=dists_arrays,
+            qs=qs
+        )
+        
+        import matplotlib.pyplot as plt
+        for slide in weight_map.reshape(-1, 128, 128):
+            plt.imshow(slide, cmap='gray')
+            plt.show()
+        
         loss_temp = (total * weight_map).sum()
         loss = (-1 / pred.shape[0]) * loss_temp
 
@@ -199,17 +209,17 @@ class CompositeLoss:
     
     
     
-    def __call__(self, pred, true, epoch):
+    def __call__(self, pred, true, epoch, dists_arrays=None):
         true = (true > 0).long()
         
-        wbce = self.wbce_weight * self.wbce(pred, true, epoch)
+        wbce = self.wbce_weight * self.wbce(pred, true, epoch, dists_arrays)
         dice = self.dice_weight * self.dice(pred, true)
         perceptual = self.perc_weight * self.perceptual(pred, true)
         
         return wbce + dice + perceptual
     
     
-    
+'''    
 def get_weight_maps(tensors):
     device = tensors.device
     dtype = tensors.dtype
@@ -232,4 +242,4 @@ def get_weight_maps(tensors):
     weight_maps = weight_maps.reshape(arrays_shape)
     weight_maps = torch.tensor(weight_maps).type(dtype).to(device)
     
-    return weight_maps
+    return weight_maps'''

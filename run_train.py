@@ -72,7 +72,7 @@ def dump_visualisations(
     ):
     num_saved = 0
     for batch in loader:
-        xs, ys = batch
+        xs, ys, _ = batch
         
         xs = xs.to(device)
         ys = ys.to(device)
@@ -126,7 +126,10 @@ def main():
     model = model_type(**model_kwargs).train().to(device)
         
     if hasattr(torch, 'compile'):
-        model = torch.compile(model)
+        try:
+            model = torch.compile(model)
+        except:
+            print('torch failed to compile model due to error.')
     
     if id is None:
         id = int(time.time())

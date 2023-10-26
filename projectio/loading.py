@@ -17,12 +17,14 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from tqdm import tqdm
 from pconfig import DATA_ROOT
+from pathlib import Path
 from preprocessing import (
     resolve_seg_conflicts, 
     normalize, 
     resize,
     get_markers
 )
+from optim import compute_borders, compute_dists_array_from_borders
 from .augmentation import (
     random_hflip,
     random_vflip,
@@ -32,7 +34,7 @@ from .augmentation import (
 
 def load_train(dataset, dataset_kwargs, dataloader_kwargs):
     ds = CTCDataset(dataset, 'train', **dataset_kwargs)
-    trainloader = DataLoader(ds, **dataloader_kwargs, shuffle=True)
+    trainloader = DataLoader(ds, **dataloader_kwargs, shuffle=True, collate_fn=__custom_collate)
     
     return trainloader
 
@@ -40,7 +42,7 @@ def load_train(dataset, dataset_kwargs, dataloader_kwargs):
 
 def load_valid(dataset, dataset_kwargs, dataloader_kwargs):
     ds = CTCDataset(dataset, 'valid', **dataset_kwargs)
-    validloader = DataLoader(ds, **dataloader_kwargs, shuffle=False)
+    validloader = DataLoader(ds, **dataloader_kwargs, shuffle=False, collate_fn=__custom_collate)
     
     return validloader
 
@@ -48,7 +50,7 @@ def load_valid(dataset, dataset_kwargs, dataloader_kwargs):
 
 def load_test(dataset, dataset_kwargs, dataloader_kwargs):
     ds = CTCDataset(dataset, 'test', **dataset_kwargs)
-    validloader = DataLoader(ds, **dataloader_kwargs, shuffle=False)
+    validloader = DataLoader(ds, **dataloader_kwargs, shuffle=False, collate_fn=__custom_collate)
     
     return validloader
 
@@ -70,7 +72,7 @@ class CTCDataset(Dataset):
         self.device = device
         self.im_size = im_size
         
-        if partition.lower() == 'train' or partition.lower() == 'valid':
+        if partition.lower() == 'train' or partition.lower() == 'valid' or partition.lower() == 'test':
             
             if partition.lower() == 'train':
                 data_dir = os.path.join(root_dir, dataset, partition)
@@ -89,10 +91,16 @@ class CTCDataset(Dataset):
             imgs_paths = [os.path.join(imgs_dir, fp) for fp in sorted(os.listdir(imgs_dir))]
             segs_gt_st_paths = self.__get_segs_gt_st(segs_gt_dir, segs_st_dir)
             
-            self.segs = self.__load_segs(segs_gt_st_paths, load_limit)
+            if partition.lower() == 'valid':
+                segs_gt_st_paths = [elem for i, elem in enumerate(segs_gt_st_paths) if i % 2 == 0]
             
-        elif partition.lower() == 'test':
-            data_dir = os.path.join(root_dir, dataset, 'test')
+            elif partition.lower() == 'test':
+                segs_gt_st_paths = [elem for i, elem in enumerate(segs_gt_st_paths) if i % 2 == 1]
+            
+            self.segs, self.dists = self.__load_segs(segs_gt_st_paths, load_limit)
+            
+        elif partition.lower() == 'eval':
+            data_dir = os.path.join(root_dir, dataset, 'eval')
             
             imgs_dir_1 = os.path.join(data_dir, '01')
             imgs_dir_2 = os.path.join(data_dir, '02')
@@ -117,16 +125,47 @@ class CTCDataset(Dataset):
         
         augment = self.partition == 'train'
         
-        if self.partition != 'test':
+        if self.partition != 'eval':
             ys = self.segs[idx]
+            dist_fnames = self.dists[idx]
+            
+            if isinstance(dist_fnames, np.str):
+                dist_fnames = [dist_fnames]
+            
+            def load_dist(fname):
+                d_arr = np.load(fname)
+
+                ds = [d_arr[k] for k in d_arr.iterkeys() if k[0] == 'd']
+                ds = [d[..., 0:0] if len(d.shape) == 2 else d for d in ds]
+                
+                qs = [d_arr[k] for k in d_arr.iterkeys() if k[0] == 'q']
+                qs = [q[..., 0:0] if len(q.shape) == 2 else q for q in qs]
+
+                return ds, qs
+            
+            dists, qs = list(zip(*[load_dist(name) for name in dist_fnames]))
+            
+            dists = [item for sublist in dists for item in sublist]
+            dists = [np.transpose(d, (2, 1, 0)) for d in dists]
+            dists = [torch.from_numpy(d).to(self.device) for d in dists]
+            
+            qs = [item for sublist in qs for item in sublist]
+            qs = [np.transpose(q, (2, 1, 0)) for q in qs]
+            qs = [torch.from_numpy(q).to(self.device) for q in qs]
             
             if augment:
-                xs, ys = random_hflip(xs, ys)
-                xs, ys = random_vflip(xs, ys)
-                xs, ys = random_rotate(xs, ys)
-                xs, ys = random_roll(xs, ys)
+                xs, ys, dists, qs = random_hflip(xs, ys, dists, qs)
+                xs, ys, dists, qs = random_vflip(xs, ys, dists, qs)
+                #xs, ys, dists, qs = random_rotate(xs, ys, dists, qs)
+                xs, ys, dists, qs = random_roll(xs, ys, dists, qs)
 
-            return xs, ys    
+            dists = [d.detach().cpu().numpy() for d in dists]
+            dists = [np.transpose(d, (2, 1, 0)) for d in dists]
+            
+            qs = [q.detach().cpu().numpy() for q in qs]
+            qs = [np.transpose(q, (2, 1, 0)) for q in qs]
+            
+            return xs, ys, dists, qs
         
         else:
             return xs
@@ -208,7 +247,13 @@ class CTCDataset(Dataset):
         if load_limit is not None:
             seg_paths = seg_paths[:load_limit]
         
-        segs = []
+        img_sequence = os.path.basename(str(Path(seg_paths[0]).parents[1]))[:2]
+        dists_root = os.path.join(Path(seg_paths[0]).parents[2], f'DISTS_{img_sequence}')
+        
+        if not os.path.isdir(dists_root):
+            os.mkdir(dists_root)
+        
+        segs, dists = [], []
         for seg_path in tqdm(seg_paths):
             seg = sio.imread(seg_path)
             
@@ -252,7 +297,48 @@ class CTCDataset(Dataset):
 
             segs.append(seg)
             
-        segs = torch.stack(segs)
+            img_name = os.path.basename(seg_path)
             
-        return segs
+            dist_name = img_name.replace('.tif', f'_{self.im_size}.npz')
+            dist_fname = os.path.join(dists_root, dist_name)
+            
+            if not os.path.isfile(dist_fname):
+                arrays = seg.detach().cpu().numpy()
+                arrays_shape = arrays.shape
+                
+                border_seg_maps = seg.reshape((-1, *arrays_shape[-2:]))
+                borders = compute_borders(border_seg_maps, arrays_shape)
+                
+                borders = compute_borders(seg, arrays_shape)
+                
+                dist_array, qs = list(zip(*[compute_dists_array_from_borders(b) for b in borders]))
+                
+                save_dict = {f'd{i}': d for i, d in enumerate(dist_array)}
+                save_dict.update({f'q{i}': q for i, q in enumerate(qs)})
+
+                np.savez_compressed(
+                    dist_fname,
+                    **save_dict
+                )
+            
+            dists.append(dist_fname)
+            
+        segs = torch.stack(segs)
+        dists = np.array(dists)    
+        
+        return segs, dists
     
+    
+    
+def __custom_collate(batch):
+    batch = list(zip(*batch))
+    
+    xs, ys, dists, qs = batch
+    
+    xs = torch.stack(xs)
+    ys = torch.stack(ys)
+    
+    dists = [item for sublist in dists for item in sublist]
+    qs = [item for sublist in qs for item in sublist]
+    
+    return xs, ys, dists, qs
