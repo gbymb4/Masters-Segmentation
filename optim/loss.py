@@ -65,7 +65,7 @@ class SpatialWeightedBCELoss:
         )
         
         upscale_size = true.shape[-2:]
-        weight_map = T.Resize(upscale_size)(weight_map.squeeze(dim=2))
+        weight_map = T.Resize(upscale_size, interpolation=0)(weight_map.squeeze(dim=2))
         weight_map = weight_map.unsqueeze(dim=2)
         
         loss_temp = (total * weight_map).sum()
