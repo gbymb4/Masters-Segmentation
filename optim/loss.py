@@ -56,11 +56,6 @@ class SpatialWeightedBCELoss:
             qs=qs
         )
         
-        import matplotlib.pyplot as plt
-        for slide in weight_map.reshape(-1, 128, 128):
-            plt.imshow(slide, cmap='gray')
-            plt.show()
-        
         loss_temp = (total * weight_map).sum()
         loss = (-1 / pred.shape[0]) * loss_temp
 
