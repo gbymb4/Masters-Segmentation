@@ -10,6 +10,7 @@ import torch
 
 import numpy as np
 import skimage.io as sio
+import torchvision.transforms as T
 import torchvision.transforms.functional as F
 
 from torch import nn
@@ -129,7 +130,7 @@ class CTCDataset(Dataset):
             ys = self.segs[idx]
             dist_fnames = self.dists[idx]
             
-            if isinstance(dist_fnames, np.str):
+            if not isinstance(idx, list):
                 dist_fnames = [dist_fnames]
             
             def load_dist(fname):
@@ -299,17 +300,20 @@ class CTCDataset(Dataset):
             
             img_name = os.path.basename(seg_path)
             
-            dist_name = img_name.replace('.tif', f'_{self.im_size}.npz')
+            dist_name = img_name.replace('.tif', f'_{self.im_size // 2}.npz')
             dist_fname = os.path.join(dists_root, dist_name)
             
             if not os.path.isfile(dist_fname):
                 arrays = seg.detach().cpu().numpy()
                 arrays_shape = arrays.shape
                 
-                border_seg_maps = seg.reshape((-1, *arrays_shape[-2:]))
-                borders = compute_borders(border_seg_maps, arrays_shape)
+                reduced_size = [s // 2 for s in arrays_shape[-2:]]
+                reduced_shape = (*arrays_shape[:-2], *reduced_size)
                 
-                borders = compute_borders(seg, arrays_shape)
+                reduced_seg_maps = T.Resize(reduced_size, interpolation=0)(seg)
+                
+                border_seg_maps = reduced_seg_maps.reshape((-1, *reduced_shape[-2:]))
+                borders = compute_borders(border_seg_maps, reduced_shape)
                 
                 dist_array, qs = list(zip(*[compute_dists_array_from_borders(b) for b in borders]))
                 

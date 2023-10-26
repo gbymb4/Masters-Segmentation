@@ -9,6 +9,7 @@ import torch
 
 import numpy as np
 import scipy.ndimage as ndi
+import torchvision.transforms as T
 
 from torch import nn
 from torchvision.models.resnet import resnet50, ResNet50_Weights
@@ -40,6 +41,9 @@ class SpatialWeightedBCELoss:
             pred = pred.unsqueeze(dim=0)
             true = true.unsqueeze(dim=0)
 
+        shape = true.shape
+        temp_shape = (shape[0], shape[1] * shape[2], *shape[-2:])
+
         pred = torch.clip(pred, self.epsilon, 1 - self.epsilon)
 
         positive = (self.weight_frac * (self.weight - 1) + 1) * true * torch.log(pred)
@@ -49,12 +53,20 @@ class SpatialWeightedBCELoss:
         
         power = (1 + (epoch / self.epochs) * (self.weight_power - 1)) 
         
+        reduced_size = [s // 2 for s in true.shape[-2:]]
+        reduced_true = T.Resize(reduced_size, interpolation=0)(true.reshape(temp_shape))
+        reduced_true = reduced_true.unsqueeze(dim=2)
+        
         weight_map = compute_coulomb_weightmaps(
-            true,
+            reduced_true,
             p=power, 
             dists_arrays=dists_arrays,
             qs=qs
         )
+        
+        upscale_size = true.shape[-2:]
+        weight_map = T.Resize(upscale_size)(weight_map.squeeze(dim=2))
+        weight_map = weight_map.unsqueeze(dim=2)
         
         loss_temp = (total * weight_map).sum()
         loss = (-1 / pred.shape[0]) * loss_temp
