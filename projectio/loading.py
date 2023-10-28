@@ -93,9 +93,11 @@ class CTCDataset(Dataset):
             segs_gt_st_paths = self.__get_segs_gt_st(segs_gt_dir, segs_st_dir)
             
             if partition.lower() == 'valid':
+                imgs_paths = [elem for i, elem in enumerate(imgs_paths) if i % 2 == 0]
                 segs_gt_st_paths = [elem for i, elem in enumerate(segs_gt_st_paths) if i % 2 == 0]
             
             elif partition.lower() == 'test':
+                imgs_paths = [elem for i, elem in enumerate(imgs_paths) if i % 2 == 1]
                 segs_gt_st_paths = [elem for i, elem in enumerate(segs_gt_st_paths) if i % 2 == 1]
             
             self.segs, self.dists = self.__load_segs(segs_gt_st_paths, load_limit)
@@ -136,10 +138,10 @@ class CTCDataset(Dataset):
             def load_dist(fname):
                 d_arr = np.load(fname)
 
-                ds = [d_arr[k] for k in d_arr.iterkeys() if k[0] == 'd']
+                ds = [d_arr[k] for k in d_arr.files if k[0] == 'd']
                 ds = [d[..., 0:0] if len(d.shape) == 2 else d for d in ds]
                 
-                qs = [d_arr[k] for k in d_arr.iterkeys() if k[0] == 'q']
+                qs = [d_arr[k] for k in d_arr.files if k[0] == 'q']
                 qs = [q[..., 0:0] if len(q.shape) == 2 else q for q in qs]
 
                 return ds, qs
@@ -310,7 +312,8 @@ class CTCDataset(Dataset):
                 reduced_size = [s // 2 for s in arrays_shape[-2:]]
                 reduced_shape = (*arrays_shape[:-2], *reduced_size)
                 
-                reduced_seg_maps = T.Resize(reduced_size, interpolation=0)(seg)
+                reduced_seg_maps = T.Resize(reduced_size, interpolation=0)(seg > 0)
+                reduced_seg_maps = reduced_seg_maps.cpu().detach().numpy()
                 
                 border_seg_maps = reduced_seg_maps.reshape((-1, *reduced_shape[-2:]))
                 borders = compute_borders(border_seg_maps, reduced_shape)

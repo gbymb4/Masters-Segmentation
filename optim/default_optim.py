@@ -42,7 +42,7 @@ class DefaultOptimizer:
         negative_voxels = 0
 
         for batch in self.train_loader:
-            _, ys = batch
+            _, ys, *_ = batch
             
             for y in ys:
                 y = y.cpu().detach().numpy()

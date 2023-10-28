@@ -24,7 +24,7 @@ import random
 
 random.seed(seed)
 
-size = 128
+size = 512
 
 pred = torch.zeros((4, 1, 1, size, size))
 epoch = 1

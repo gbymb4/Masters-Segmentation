@@ -18,7 +18,7 @@ def compute_coulomb_weightmaps(seg_maps, dists_arrays=None, qs=None, p=2):
     arrays = seg_maps.detach().cpu().numpy()
     arrays_shape = arrays.shape
     
-    border_seg_maps = seg_maps.reshape((-1, *arrays_shape[-2:]))
+    border_seg_maps = arrays.reshape((-1, *arrays_shape[-2:]))
     borders = compute_borders(border_seg_maps, arrays_shape)
     
     if dists_arrays is not None:
@@ -84,20 +84,6 @@ def compute_coulomb_array(charges, dists_array=None, q=None, p=2):
     
     elif dists_array.shape[-1] == 0:
         return np.zeros(dists_array.shape[:-1])
-        '''
-        charges = np.zeros(dists_array.shape[:-1])
-        charges[dists_array.min(axis=-1) < 0] = 1
-        
-        
-        
-        x, y = shape
-        
-        xy = np.meshgrid(np.arange(x), np.arange(y))
-        xy = np.stack(xy, axis=-1)
-        
-        q_mask = charges == 1
-        q_coords = xy[np.stack((q_mask, q_mask), axis=-1)].reshape(-1, 2)
-        q = np.ones((*shape, len(q_coords))) '''
     
     p = np.full((*shape, dists_array.shape[-1]), p)
     p[dists_array < 0] = 1

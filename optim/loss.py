@@ -216,10 +216,10 @@ class CompositeLoss:
     
     
     
-    def __call__(self, pred, true, epoch, dists_arrays=None):
+    def __call__(self, pred, true, epoch, dists_arrays=None, qs=None):
         true = (true > 0).long()
         
-        wbce = self.wbce_weight * self.wbce(pred, true, epoch, dists_arrays)
+        wbce = self.wbce_weight * self.wbce(pred, true, epoch, dists_arrays, qs)
         dice = self.dice_weight * self.dice(pred, true)
         perceptual = self.perc_weight * self.perceptual(pred, true)
         
