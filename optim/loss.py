@@ -51,6 +51,7 @@ class SpatialWeightedBCELoss:
 
         total = positive + negative
         
+<<<<<<< Updated upstream
         power = (1 + (epoch / self.epochs) * (self.weight_power - 1)) 
         
         reduced_size = [s // 2 for s in true.shape[-2:]]
@@ -67,6 +68,9 @@ class SpatialWeightedBCELoss:
         upscale_size = true.shape[-2:]
         weight_map = T.Resize(upscale_size, interpolation=0)(weight_map.squeeze(dim=2))
         weight_map = weight_map.unsqueeze(dim=2)
+=======
+        power = (1 + ((epoch / self.epochs) ** (1 / 2)) * (self.weight_power - 1)) 
+>>>>>>> Stashed changes
         
         loss_temp = (total * weight_map).sum()
         loss = (-1 / pred.shape[0]) * loss_temp
@@ -236,17 +240,26 @@ def get_weight_maps(tensors):
     
     arrays = arrays.reshape((-1, *arrays_shape[-2:]))
     
+    border_width = 4
+    
     # based on implementation from: https://github.com/CIVA-Lab/U-SE-ResNet-for-Cell-Tracking-Challenge/blob/main/SW/train_codes/data.py
     def weight_map(im):
         borders = feature.canny(im, low_threshold=.1, use_quantiles=True)
+        
+        borders[:border_width, :] = 0
+        borders[-border_width:, :] = 0
+        borders[:, :border_width] = 0
+        borders[:, -border_width:] = 0
+        
         dist_im = ndi.distance_transform_edt(1 - borders)
         wdist = ((dist_im.max() - dist_im)/dist_im.max())
+        
         return wdist
     
     weight_map_vec = np.vectorize(weight_map, signature='(n,m)->(n,m)')
     
     weight_maps = weight_map_vec(arrays)
     weight_maps = weight_maps.reshape(arrays_shape)
-    weight_maps = torch.tensor(weight_maps).type(dtype).to(device)
+    weight_maps = torch.tensor(weight_maps).to(device)
     
     return weight_maps'''
