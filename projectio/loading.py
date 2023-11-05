@@ -70,7 +70,7 @@ class CTCDataset(Dataset):
         self.device = device
         self.im_size = im_size
         
-        if partition.lower() == 'train' or partition.lower() == 'valid':
+        if partition.lower() == 'train' or partition.lower() == 'valid' or partition.lower() == 'test':
             
             if partition.lower() == 'train':
                 data_dir = os.path.join(root_dir, dataset, partition)
@@ -89,10 +89,18 @@ class CTCDataset(Dataset):
             imgs_paths = [os.path.join(imgs_dir, fp) for fp in sorted(os.listdir(imgs_dir))]
             segs_gt_st_paths = self.__get_segs_gt_st(segs_gt_dir, segs_st_dir)
             
-            self.segs = self.__load_segs(segs_gt_st_paths, load_limit)
+            if partition.lower() == 'valid':
+                imgs_paths = [elem for i, elem in enumerate(imgs_paths) if i % 2 == 0]
+                segs_gt_st_paths = [elem for i, elem in enumerate(segs_gt_st_paths) if i % 2 == 0]
             
-        elif partition.lower() == 'test':
-            data_dir = os.path.join(root_dir, dataset, 'test')
+            elif partition.lower() == 'test':
+                imgs_paths = [elem for i, elem in enumerate(imgs_paths) if i % 2 == 1]
+                segs_gt_st_paths = [elem for i, elem in enumerate(segs_gt_st_paths) if i % 2 == 1]            
+            
+            self.segs, self.dists = self.__load_segs(segs_gt_st_paths, load_limit)
+            
+        elif partition.lower() == 'eval':
+            data_dir = os.path.join(root_dir, dataset, 'eval')
             
             imgs_dir_1 = os.path.join(data_dir, '01')
             imgs_dir_2 = os.path.join(data_dir, '02')
@@ -106,6 +114,7 @@ class CTCDataset(Dataset):
             raise ValueError(f'parition "{partition}" is not valid')
         
         self.imgs = self.__load_imgs(imgs_paths, load_limit)
+
             
         
         
@@ -117,7 +126,7 @@ class CTCDataset(Dataset):
         
         augment = self.partition == 'train'
         
-        if self.partition != 'test':
+        if self.partition != 'eval':
             ys = self.segs[idx]
             
             if augment:
