@@ -211,8 +211,7 @@ class CompositeLoss:
     
     
 def get_weight_maps(tensors):
-    device = tensors.device
-    dtype = tensors.dtype
+    device = tensors.device   
     
     arrays = tensors.detach().cpu().numpy()
     arrays_shape = arrays.shape
