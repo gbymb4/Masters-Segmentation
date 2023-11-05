@@ -97,7 +97,7 @@ class CTCDataset(Dataset):
                 imgs_paths = [elem for i, elem in enumerate(imgs_paths) if i % 2 == 1]
                 segs_gt_st_paths = [elem for i, elem in enumerate(segs_gt_st_paths) if i % 2 == 1]            
             
-            self.segs, self.dists = self.__load_segs(segs_gt_st_paths, load_limit)
+            self.segs = self.__load_segs(segs_gt_st_paths, load_limit)
             
         elif partition.lower() == 'eval':
             data_dir = os.path.join(root_dir, dataset, 'eval')
