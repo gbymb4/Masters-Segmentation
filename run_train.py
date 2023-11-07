@@ -126,7 +126,10 @@ def main():
     model = model_type(**model_kwargs).train().to(device)
         
     if hasattr(torch, 'compile'):
-        model = torch.compile(model)
+        try:
+            model = torch.compile(model)
+        except:
+            raise RuntimeError('model compilation failed due to error.')
     
     if id is None:
         id = int(time.time())
