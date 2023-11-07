@@ -129,7 +129,7 @@ def main():
         try:
             model = torch.compile(model)
         except:
-            raise RuntimeError('model compilation failed due to error.')
+            print('model compilation failed due to error.')
     
     if id is None:
         id = int(time.time())
