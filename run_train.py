@@ -5,16 +5,17 @@ Created on Mon Aug 28 16:10:46 2023
 @author: Gavin
 """
 
-import os, time, sys, warnings
+import os, time, sys, warnings, json
 import torch, random
 
 import numpy as np
 
-from optim import DefaultOptimizer
+from optim import DefaultOptimizer, compute_all_metrics
 from postprocessing import full_postprocess, split_segs_markers
 from projectio import (
     load_train,
     load_valid,
+    load_test,
     plot_and_save_metric,
     plot_and_save_visual,
     save_history_dict_and_model,
@@ -30,6 +31,55 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+
+
+def dump_test_metrics(model, testloader, dataset, id, device):
+    test_num_slides = 0
+
+    model = model.eval()
+    
+    history_record = {}
+
+    for batch in testloader:
+        xs, ys = batch
+        
+        xs = xs.to(device)
+        ys = ys.to(device)
+        
+        batch_size = len(xs)
+
+        pred = model(xs)
+
+        post_pred = full_postprocess(pred)
+        
+        ys_segs, ys_markers = split_segs_markers(ys)
+        post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
+        
+        metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
+                
+        for name, score in metric_scores.items():
+            if name not in history_record.keys():
+                history_record[name] = score * batch_size
+            else:
+                history_record[name] += score * batch_size
+
+        test_num_slides += len(xs)
+    
+    history_record = {
+        f'test_{name}': w_score / test_num_slides for name, w_score in history_record.items()
+    }
+    
+    out_fname = os.path.join(
+        OUT_DIR, 
+        dataset.lower(), 
+        type(model).__name__,
+        str(id),
+        'test.json'
+    )
+
+    with open(out_fname, 'w') as file:
+        json.dump(history_record, file)
 
 
 
@@ -148,12 +198,14 @@ def main():
     
     trainloader = load_train(dataset, dataset_kwargs, dataloader_kwargs)
     validloader = load_valid(dataset, dataset_kwargs, dataloader_kwargs)
-        
+    testloader = load_test(dataset, dataset_kwargs, dataloader_kwargs)
+    
     optim = DefaultOptimizer(seed, model, trainloader, validloader, device=device)
     history = optim.execute(**optim_kwargs, checkpoint_callback=checkpoint)
         
     save_history_dict_and_model(dataset, model, id, config_dict, history, len(history))
         
+    dump_test_metrics(model, testloader, dataset, id, device)
     dump_metrics_plots(model, dataset, id, history)
     dump_visualisations(model, dataset, id, validloader, device)
     
