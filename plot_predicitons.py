@@ -19,7 +19,7 @@ def main():
     
     testloader = None
     for model_name in models:
-        model_save_root = config_fname = os.path.join(
+        model_save_root = os.path.join(
             OUT_DIR, 
             dataset.lower(), 
             model_name,

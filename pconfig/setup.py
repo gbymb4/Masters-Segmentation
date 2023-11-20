@@ -11,6 +11,7 @@ from copy import deepcopy
 from models.unet import (
     UNet2D, UNet3D,
     R2UNet2D, R2UNet3D,
+    R2UDet2D, R2UDet3D,
     SAR2UNet2D, SAR2UNet3D,
     U_SE_Resnet2D,
     MARM_UNet2D, MARM_UNet3D,
@@ -40,6 +41,10 @@ def prepare_config(
         model = R2UNet2D
     elif model_name.lower() == 'r2unet3d':
         model = R2UNet3D
+    elif model_name.lower() == 'r2udet2d':
+        model = R2UDet2D
+    elif model_name.lower() == 'r2udet3d':
+        model = R2UDet3D
     elif model_name.lower() == 'sar2unet2d':
         model = SAR2UNet2D
     elif model_name.lower() == 'sar2unet3d':
