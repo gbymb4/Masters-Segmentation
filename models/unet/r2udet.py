@@ -39,11 +39,11 @@ class R2UDet2D(nn.Module):
 
     
     def forward(self, x):
-        out1 = self.marmel1(x)
-        out2 = self.marmel2(out1)
-        out3 = self.marmel3(out2)
-        out4 = self.marmel4(out3)
-        out5 = self.marmel5(out4)
+        out1 = self.rrel1(x)
+        out2 = self.rrel2(out1)
+        out3 = self.rrel3(out2)
+        out4 = self.rrel4(out3)
+        out5 = self.rrel5(out4)
         
         out6 = self.rrdl6(out5, out4)
         out7 = self.rrdl7(out6, out3)
@@ -61,7 +61,7 @@ class R2UDet2D(nn.Module):
 class RUDet3D(R2UDet2D):
     
     def __init__(self, channels, img_channels=1, height=5, length=2):
-        super().__init__(channels, img_channels=1, height=5, length=2)
+        super().__init__(channels, img_channels=img_channels, height=height, length=length)
         
         self.rrel1 = RREL3D(img_channels, channels, 1)
         self.rrel2 = RREL3D(channels, channels * 2, 2)

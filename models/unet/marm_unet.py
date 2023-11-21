@@ -56,7 +56,7 @@ class MARM_UNet2D(nn.Module):
 class MARM_UNet3D(MARM_UNet2D):
     
     def __init__(self, channels, img_channels=1):
-        super().__init__(channels, img_channels=1)
+        super().__init__(channels, img_channels=img_channels)
         
         self.marmel1 = MARMEL3D(img_channels, channels, 1)
         self.marmel2 = MARMEL3D(channels, channels * 2, 2)

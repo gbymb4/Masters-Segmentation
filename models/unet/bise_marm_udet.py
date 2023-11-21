@@ -61,7 +61,7 @@ class BiSE_MARM_UDet2D(nn.Module):
 class BiSE_MARM_UDet3D(BiSE_MARM_UDet2D):
     
     def __init__(self, channels, img_channels=1, height=5, length=2):
-        super().__init__(channels, img_channels=1, height=5, length=2)
+        super().__init__(channels, img_channels=img_channels, height=height, length=length)
         
         self.marmel1 = MARMEL3D(img_channels, channels, 1)
         self.marmel2 = MARMEL3D(channels, channels * 2, 2)
