@@ -58,7 +58,7 @@ class R2UDet2D(nn.Module):
     
     
 
-class RUDet3D(R2UDet2D):
+class R2UDet3D(R2UDet2D):
     
     def __init__(self, channels, img_channels=1, height=5, length=2):
         super().__init__(channels, img_channels=img_channels, height=height, length=length)
