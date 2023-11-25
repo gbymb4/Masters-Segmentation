@@ -74,13 +74,13 @@ def exec_model(model, testloader, device, save_freq, test_visuals_root):
         ys_segs, ys_markers = split_segs_markers(ys)
         post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
 
-        xs = xs.reshape(-1, xs.shape[-2:])
+        xs = xs.reshape(-1, *xs.shape[-2:])
         xs = xs.transpose(0, 2, 1)
         
-        ys_segs = ys_segs.reshape(-1, ys_segs.shape[-2:])
+        ys_segs = ys_segs.reshape(-1, *ys_segs.shape[-2:])
         ys_segs = ys_segs.transpose(0, 2, 1)
     
-        post_pred_segs = post_pred_segs.reshape(-1, post_pred_segs.shape[-2:])
+        post_pred_segs = post_pred_segs.reshape(-1, *post_pred_segs.shape[-2:])
         post_pred_segs = post_pred_segs.transpose(0, 2, 1)
         
         for x, y, p in zip(xs, ys_segs, post_pred_segs):
