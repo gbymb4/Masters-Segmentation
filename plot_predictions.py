@@ -17,6 +17,8 @@ def main():
     args = sys.argv[1:]
     save_freq, dataset, id, *models = args
     
+    save_freq = int(save_freq)
+    
     testloader = None
     for model_name in models:
         model_save_root = os.path.join(
@@ -75,24 +77,36 @@ def exec_model(model, testloader, device, save_freq, test_visuals_root):
         post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
 
         xs = xs.reshape(-1, *xs.shape[-2:])
-        xs = xs.transpose(0, 2, 1)
+        xs = xs.transpose(2, 1)
         
         ys_segs = ys_segs.reshape(-1, *ys_segs.shape[-2:])
-        ys_segs = ys_segs.transpose(0, 2, 1)
+        ys_segs = ys_segs.transpose(2, 1)
     
         post_pred_segs = post_pred_segs.reshape(-1, *post_pred_segs.shape[-2:])
-        post_pred_segs = post_pred_segs.transpose(0, 2, 1)
+        post_pred_segs = post_pred_segs.transpose(2, 1)
         
         for x, y, p in zip(xs, ys_segs, post_pred_segs):
             if img_num % save_freq == 0:
                 x = Image.fromarray(x.detach().cpu().numpy())
-                x.save(os.path.join(test_visuals_root, f'x{img_num}.png'))
+                
+                if x.mode != 'RGB':
+                    x = x.convert('RGB')
+                    
+                x.save(os.path.join(test_visuals_root, 'xs', f'x{img_num}.png'))
                 
                 y = Image.fromarray(p.detach().cpu().numpy())
-                y.save(os.path.join(test_visuals_root, f'y{img_num}.png'))
+                
+                if y.mode != 'RGB':
+                    y = y.convert('RGB')
+                
+                y.save(os.path.join(test_visuals_root, 'ys_segs', f'y{img_num}.png'))
                 
                 p = Image.fromarray(p.detach().cpu().numpy())
-                p.save(os.path.join(test_visuals_root, f'p{img_num}.png'))
+                
+                if p.mode != 'RGB':
+                    p = p.convert('RGB')
+                
+                p.save(os.path.join(test_visuals_root, 'post_pred_segs', f'p{img_num}.png'))
             
             img_num += 1
     
