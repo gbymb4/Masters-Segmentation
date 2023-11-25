@@ -108,7 +108,7 @@ def load_model(model_type, model_kwargs, dataset, id):
     )
 
     state_dicts_fps = sorted(os.listdir(state_dicts_path), key=lambda x: int(x[7:-3]))
-    state_dict_fp = os.join(state_dicts_path, state_dicts_fps[-1])
+    state_dict_fp = os.path.join(state_dicts_path, state_dicts_fps[-1])
 
     model = model_type(**model_kwargs)
     model.load_state_dict(torch.load(state_dict_fp))
