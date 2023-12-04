@@ -15,7 +15,7 @@ from models.unet import (
     SAR2UNet2D, SAR2UNet3D,
     U_SE_Resnet2D,
     MARM_UNet2D, MARM_UNet3D,
-    BiSE_MARM_UDet2D, BiSE_MARM_UDet3D
+    BiSE_MARM_UDet2D, BiSE_MARM_UDet3D, Alt_BiSE_MARM_UDet2D
 )
 
 def parse_config(fname: str) -> dict:
@@ -59,6 +59,8 @@ def prepare_config(
         model = BiSE_MARM_UDet2D
     elif model_name.lower() == 'bise_marm_udet3d':
         model = BiSE_MARM_UDet3D
+    elif model_name.lower() == 'alt_bise_marm_udet2d':
+        model = Alt_BiSE_MARM_UDet2D
     else:
         raise ValueError(f'invalid model type "{model_name}" in config file')
 

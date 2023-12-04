@@ -87,7 +87,7 @@ def exec_model(model, testloader, device, save_freq, test_visuals_root):
         
         for x, y, p in zip(xs, ys_segs, post_pred_segs):
             if img_num % save_freq == 0:
-                x = Image.fromarray(x.detach().cpu().numpy())
+                x = Image.fromarray((x.detach().cpu().numpy() * 255).astype('uint8'))
                 
                 if x.mode != 'RGB':
                     x = x.convert('RGB')
