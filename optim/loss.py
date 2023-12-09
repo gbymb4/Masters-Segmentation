@@ -44,7 +44,7 @@ class SpatialWeightedBCELoss:
         positive = (self.weight_frac * (self.weight - 1) + 1) * true * torch.log(pred)
         negative = (1 - true) * torch.log(1 - pred)
 
-        total = positive + negative
+        total = (positive + negative) / (self.weight_frac * (self.weight - 1) + 1)
         
         power = (1 + ((epoch / self.epochs) ** (1 / 2)) * (self.weight_power - 1)) 
         

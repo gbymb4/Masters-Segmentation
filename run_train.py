@@ -168,7 +168,7 @@ def main():
     config_dict = parse_config(config_fname)
     config_tup = prepare_config(config_dict)
     
-    seed, dataset, model_type, device, id, checkpoint_freq, *rest = config_tup
+    seed, dataset, dataset_type, model_type, device, id, checkpoint_freq, *rest = config_tup
     model_kwargs, optim_kwargs, dataloader_kwargs, dataset_kwargs = rest
     
     set_seed(seed)
@@ -196,9 +196,9 @@ def main():
             save_history_dict_and_model(dataset, model, id, config_dict, history, epoch)
             dump_metrics_plots(model, dataset, id, history)
     
-    trainloader = load_train(dataset, dataset_kwargs, dataloader_kwargs)
-    validloader = load_valid(dataset, dataset_kwargs, dataloader_kwargs)
-    testloader = load_test(dataset, dataset_kwargs, dataloader_kwargs)
+    trainloader = load_train(dataset, dataset_type, dataset_kwargs, dataloader_kwargs)
+    validloader = load_valid(dataset, dataset_type, dataset_kwargs, dataloader_kwargs)
+    testloader = load_test(dataset, dataset_type, dataset_kwargs, dataloader_kwargs)
     
     optim = DefaultOptimizer(seed, model, trainloader, validloader, device=device)
     history = optim.execute(**optim_kwargs, checkpoint_callback=checkpoint)

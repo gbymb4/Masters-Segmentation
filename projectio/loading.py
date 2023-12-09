@@ -21,7 +21,9 @@ from preprocessing import (
     resolve_seg_conflicts, 
     normalize, 
     resize,
-    get_markers
+    get_markers,
+    tile_split,
+    lcm_pad
 )
 from .augmentation import (
     random_hflip,
@@ -30,24 +32,24 @@ from .augmentation import (
     random_roll
 )
 
-def load_train(dataset, dataset_kwargs, dataloader_kwargs):
-    ds = CTCDataset(dataset, 'train', **dataset_kwargs)
+def load_train(dataset, dataset_type, dataset_kwargs, dataloader_kwargs):
+    ds = dataset_type(dataset, 'train', **dataset_kwargs)
     trainloader = DataLoader(ds, **dataloader_kwargs, shuffle=True)
     
     return trainloader
 
 
 
-def load_valid(dataset, dataset_kwargs, dataloader_kwargs):
-    ds = CTCDataset(dataset, 'valid', **dataset_kwargs)
+def load_valid(dataset, dataset_type, dataset_kwargs, dataloader_kwargs):
+    ds = dataset_type(dataset, 'valid', **dataset_kwargs)
     validloader = DataLoader(ds, **dataloader_kwargs, shuffle=False)
     
     return validloader
 
 
 
-def load_test(dataset, dataset_kwargs, dataloader_kwargs):
-    ds = CTCDataset(dataset, 'test', **dataset_kwargs)
+def load_test(dataset, dataset_type, dataset_kwargs, dataloader_kwargs):
+    ds = dataset_type(dataset, 'test', **dataset_kwargs)
     validloader = DataLoader(ds, **dataloader_kwargs, shuffle=False)
     
     return validloader
@@ -264,4 +266,507 @@ class CTCDataset(Dataset):
         segs = torch.stack(segs)
             
         return segs
+
+
+
+class DRIVEDataset(Dataset):
+    
+    def __init__(
+        self, 
+        _, 
+        partition, 
+        device='cpu', 
+        tile_size=48,
+        train_frac=0.9,
+        valid_frac=0.05,
+        test_frac=0.05,
+        load_limit=None
+    ):
+        assert round(train_frac + valid_frac + test_frac, 3) == 1.0
+        
+        root_dir = DATA_ROOT
+        
+        self.partition = partition
+        self.device = device
+        self.tile_size = tile_size
+        
+        data_root = os.path.join(root_dir, 'DRIVE', 'training')
+        seg_root = os.path.join(data_root, '1st_manual')
+        img_root = os.path.join(data_root, 'images')
+        
+        img_fps = [os.path.join(img_root, fp)for fp in sorted(
+            os.listdir(img_root),
+            key=lambda x: int(x[:-12])
+        )]
+        seg_fps = [os.path.join(seg_root, fp)for fp in sorted(
+            os.listdir(seg_root),
+            key=lambda x: int(x[:-12])
+        )]
+        
+        num_imgs = len(img_fps)
+        
+        if self.partition == 'train':
+            start_idx = 0
+            end_idx = int(num_imgs * train_frac)
+        
+        elif self.partition == 'valid':
+            start_idx = int(num_imgs * train_frac)
+            end_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            
+        elif self.partition == 'test':
+            start_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            end_idx = num_imgs
+        
+        elif self.partition == 'eval':
+            raise ValueError('"eval" partition not supported for STAREDataset.')
+        
+        filtered_img_fps = img_fps[start_idx : end_idx]
+        filtered_seg_fps = seg_fps[start_idx : end_idx]
+        
+        if load_limit is not None:
+            filtered_img_fps = filtered_img_fps[:load_limit]
+            filtered_seg_fps = filtered_seg_fps[:load_limit]
+        
+        self.imgs, self.segs = self.__load_ppms(
+            filtered_img_fps,
+            filtered_seg_fps
+        )
+        
+        
+        
+    def __load_ppms(self, img_fps, seg_fps):
+        imgs, segs = [], []
+        
+        for img_fp, seg_fp in zip(img_fps, seg_fps):
+            img = np.array(Image.open(img_fp)) / 255
+            seg = np.array(Image.open(seg_fp))
+            
+            seg = seg > 0
+            seg = seg[..., np.newaxis]
+            seg = lcm_pad(seg, self.tile_size)
+            seg = tile_split(seg, self.tile_size)
+            seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = torch.tensor(seg).long().to(self.device)
+            
+            segs.append(seg)
+
+            img = lcm_pad(img, self.tile_size)
+            img = tile_split(img, self.tile_size)
+            img = img.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            img = torch.tensor(img).float().to(self.device)
+            
+            imgs.append(img)
+        
+        imgs = torch.cat(imgs, 0)
+        segs = torch.cat(segs, 0)
+        
+        return imgs, segs
+    
+    
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        xs = self.imgs[idx]
+        
+        augment = self.partition == 'train'
+        
+        if self.partition != 'eval':
+            ys = self.segs[idx]
+            
+            if augment:
+                xs, ys = random_hflip(xs, ys)
+                xs, ys = random_vflip(xs, ys)
+                xs, ys = random_rotate(xs, ys)
+                xs, ys = random_roll(xs, ys)
+
+            return xs, ys    
+        
+        else:
+            return xs
+        
+        
+        
+    def __len__(self):
+        return len(self.imgs)
+
+
+
+class STAREDataset(Dataset):
+    
+    def __init__(
+        self, 
+        _, 
+        partition, 
+        device='cpu', 
+        tile_size=48,
+        train_frac=0.9,
+        valid_frac=0.05,
+        test_frac=0.05,
+        load_limit=None
+    ):
+        assert round(train_frac + valid_frac + test_frac, 3) == 1.0
+        
+        root_dir = DATA_ROOT
+        
+        self.partition = partition
+        self.device = device
+        self.tile_size = tile_size
+        
+        data_root = os.path.join(root_dir, 'STARE')
+        ah_root = os.path.join(data_root, 'annotations', 'ah')
+        vk_root = os.path.join(data_root, 'annotations', 'vk')
+        
+        img_fps = [os.path.join(data_root, 'imgs', fp)for fp in sorted(
+            os.listdir(os.path.join(data_root, 'imgs')),
+            key=lambda x: int(x[2:-4])
+        )]
+        ah_fps = [os.path.join(ah_root, fp)for fp in sorted(
+            os.listdir(ah_root),
+            key=lambda x: int(x[2:-7])
+        )]
+        vk_fps = [os.path.join(vk_root, fp)for fp in sorted(
+            os.listdir(vk_root),
+            key=lambda x: int(x[2:-7])
+        )]
+        
+        num_imgs = len(img_fps)
+        
+        if self.partition == 'train':
+            start_idx = 0
+            end_idx = int(num_imgs * train_frac)
+        
+        elif self.partition == 'valid':
+            start_idx = int(num_imgs * train_frac)
+            end_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            
+        elif self.partition == 'test':
+            start_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            end_idx = num_imgs
+        
+        elif self.partition == 'eval':
+            raise ValueError('"eval" partition not supported for STAREDataset.')
+        
+        filtered_img_fps = img_fps[start_idx : end_idx]
+        filtered_ah_fps = ah_fps[start_idx : end_idx]
+        filtered_vk_fps = vk_fps[start_idx : end_idx]
+        
+        if load_limit is not None:
+            filtered_img_fps = filtered_img_fps[:load_limit]
+            filtered_ah_fps = filtered_ah_fps[:load_limit]
+            filtered_vk_fps = filtered_vk_fps[:load_limit]
+        
+        self.imgs, self.segs = self.__load_ppms(
+            filtered_img_fps,
+            filtered_ah_fps,
+            filtered_vk_fps
+        )
+        
+        
+        
+    def __load_ppms(self, img_fps, ah_fps, vk_fps):
+        imgs, segs = [], []
+        
+        for img_fp, ah_fp, vk_fp in zip(img_fps, ah_fps, vk_fps):
+            img = np.array(Image.open(img_fp)) / 255
+            ah = np.array(Image.open(ah_fp))
+            vk = np.array(Image.open(vk_fp))
+            
+            seg = ((ah > 0) | (vk > 0))
+            seg = seg[..., np.newaxis]
+            seg = lcm_pad(seg, lcm=self.tile_size)
+            seg = tile_split(seg, self.tile_size)
+            seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = torch.tensor(seg).long().to(self.device)
+            
+            segs.append(seg)
+
+            img = lcm_pad(img, lcm=self.tile_size)
+            img = tile_split(img, self.tile_size)
+            img = img.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            img = torch.tensor(img).float().to(self.device)
+            
+            imgs.append(img)
+        
+        imgs = torch.cat(imgs, 0)
+        segs = torch.cat(segs, 0)
+        
+        return imgs, segs
+    
+    
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        xs = self.imgs[idx]
+        
+        augment = self.partition == 'train'
+        
+        if self.partition != 'eval':
+            ys = self.segs[idx]
+            
+            if augment:
+                xs, ys = random_hflip(xs, ys)
+                xs, ys = random_vflip(xs, ys)
+                xs, ys = random_rotate(xs, ys)
+                xs, ys = random_roll(xs, ys)
+
+            return xs, ys    
+        
+        else:
+            return xs
+        
+        
+        
+    def __len__(self):
+        return len(self.imgs)
+        
+    
+    
+class IOSTARDataset(Dataset):
+    
+    def __init__(
+        self, 
+        _, 
+        partition, 
+        device='cpu', 
+        tile_size=48,
+        train_frac=0.9,
+        valid_frac=0.05,
+        test_frac=0.05,
+        load_limit=None
+    ):
+        assert round(train_frac + valid_frac + test_frac, 3) == 1.0
+        
+        root_dir = DATA_ROOT
+        
+        self.partition = partition
+        self.device = device
+        self.tile_size = tile_size
+        
+        data_root = os.path.join(root_dir, 'IOSTAR')
+        seg_root = os.path.join(data_root, 'GT')
+        img_root = os.path.join(data_root, 'image')
+        
+        img_fps = [os.path.join(img_root, fp)for fp in sorted(
+            os.listdir(img_root),
+            key=lambda x: int(x[5:-8])
+        )]
+        seg_fps = [os.path.join(seg_root, fp)for fp in sorted(
+            os.listdir(seg_root),
+            key=lambda x: int(x[5:-8])
+        )]
+        
+        num_imgs = len(img_fps)
+        
+        if self.partition == 'train':
+            start_idx = 0
+            end_idx = int(num_imgs * train_frac)
+        
+        elif self.partition == 'valid':
+            start_idx = int(num_imgs * train_frac)
+            end_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            
+        elif self.partition == 'test':
+            start_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            end_idx = num_imgs
+        
+        elif self.partition == 'eval':
+            raise ValueError('"eval" partition not supported for STAREDataset.')
+        
+        filtered_img_fps = img_fps[start_idx : end_idx]
+        filtered_seg_fps = seg_fps[start_idx : end_idx]
+        
+        if load_limit is not None:
+            filtered_img_fps = filtered_img_fps[:load_limit]
+            filtered_seg_fps = filtered_seg_fps[:load_limit]
+        
+        self.imgs, self.segs = self.__load_ppms(
+            filtered_img_fps,
+            filtered_seg_fps
+        )
+        
+        
+        
+    def __load_ppms(self, img_fps, seg_fps):
+        imgs, segs = [], []
+        
+        for img_fp, seg_fp in zip(img_fps, seg_fps):
+            img = np.array(Image.open(img_fp)) / 255
+            seg = np.array(Image.open(seg_fp))
+            
+            seg = seg > 0
+            seg = seg[..., np.newaxis]
+            seg = lcm_pad(seg, lcm=self.tile_size)
+            seg = tile_split(seg, self.tile_size)
+            seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = torch.tensor(seg).long().to(self.device)
+            
+            segs.append(seg)
+
+            img = lcm_pad(img, lcm=self.tile_size)
+            img = tile_split(img, self.tile_size)
+            img = img.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            img = torch.tensor(img).float().to(self.device)
+            
+            imgs.append(img)
+        
+        imgs = torch.cat(imgs, 0)
+        segs = torch.cat(segs, 0)
+        
+        return imgs, segs
+    
+    
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        xs = self.imgs[idx]
+        
+        augment = self.partition == 'train'
+        
+        if self.partition != 'eval':
+            ys = self.segs[idx]
+            
+            if augment:
+                xs, ys = random_hflip(xs, ys)
+                xs, ys = random_vflip(xs, ys)
+                xs, ys = random_rotate(xs, ys)
+                xs, ys = random_roll(xs, ys)
+
+            return xs, ys    
+        
+        else:
+            return xs
+        
+        
+        
+    def __len__(self):
+        return len(self.imgs)
+    
+    
+    
+class HRFDataset(Dataset):
+    
+    def __init__(
+        self, 
+        _, 
+        partition, 
+        device='cpu', 
+        tile_size=48,
+        train_frac=0.9,
+        valid_frac=0.05,
+        test_frac=0.05,
+        load_limit=None
+    ):
+        assert round(train_frac + valid_frac + test_frac, 3) == 1.0
+        
+        root_dir = DATA_ROOT
+        
+        self.partition = partition
+        self.device = device
+        self.tile_size = tile_size
+        
+        data_root = os.path.join(root_dir, 'HRF')
+        seg_root = os.path.join(data_root, 'manual1')
+        img_root = os.path.join(data_root, 'images')
+        
+        img_fps = [os.path.join(img_root, fp)for fp in sorted(
+            os.listdir(img_root)
+        )]
+        seg_fps = [os.path.join(seg_root, fp)for fp in sorted(
+            os.listdir(seg_root)
+        )]
+        
+        num_imgs = len(img_fps)
+        
+        if self.partition == 'train':
+            start_idx = 0
+            end_idx = int(num_imgs * train_frac)
+        
+        elif self.partition == 'valid':
+            start_idx = int(num_imgs * train_frac)
+            end_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            
+        elif self.partition == 'test':
+            start_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            end_idx = num_imgs
+        
+        elif self.partition == 'eval':
+            raise ValueError('"eval" partition not supported for STAREDataset.')
+        
+        filtered_img_fps = img_fps[start_idx : end_idx]
+        filtered_seg_fps = seg_fps[start_idx : end_idx]
+        
+        if load_limit is not None:
+            filtered_img_fps = filtered_img_fps[:load_limit]
+            filtered_seg_fps = filtered_seg_fps[:load_limit]
+        
+        self.imgs, self.segs = self.__load_ppms(
+            filtered_img_fps,
+            filtered_seg_fps
+        )
+        
+        
+        
+    def __load_ppms(self, img_fps, seg_fps):
+        imgs, segs = [], []
+        
+        for img_fp, seg_fp in zip(img_fps, seg_fps):
+            img = np.array(Image.open(img_fp)) / 255
+            seg = np.array(Image.open(seg_fp))
+            
+            seg = seg > 0
+            seg = seg[..., np.newaxis]
+            seg = lcm_pad(seg, lcm=self.tile_size)
+            seg = tile_split(seg, self.tile_size)
+            seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = torch.tensor(seg).long().to(self.device)
+            
+            segs.append(seg)
+
+            img = lcm_pad(img, lcm=self.tile_size)
+            img = tile_split(img, self.tile_size)
+            img = img.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            img = torch.tensor(img).float().to(self.device)
+            
+            imgs.append(img)
+        
+        imgs = torch.cat(imgs, 0)
+        segs = torch.cat(segs, 0)
+        
+        return imgs, segs
+    
+    
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        xs = self.imgs[idx]
+        
+        augment = self.partition == 'train'
+        
+        if self.partition != 'eval':
+            ys = self.segs[idx]
+            
+            if augment:
+                xs, ys = random_hflip(xs, ys)
+                xs, ys = random_vflip(xs, ys)
+                xs, ys = random_rotate(xs, ys)
+                xs, ys = random_roll(xs, ys)
+
+            return xs, ys    
+        
+        else:
+            return xs
+        
+        
+        
+    def __len__(self):
+        return len(self.imgs)
+    
     

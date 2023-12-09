@@ -10,6 +10,7 @@ import numpy as np
 from scipy import ndimage
 from skimage import morphology, measure
 from skimage.transform import resize as r
+from numpy.lib.stride_tricks import sliding_window_view
 from .utils import find_closest_pairs, compute_centroids
 
 def resize(img, height, width):
@@ -22,6 +23,44 @@ def resize(img, height, width):
     ).astype(np.uint16)
                 
     return resized
+
+
+
+def tile_split(img, chunk_size):
+    img = img.transpose(2, 1, 0)
+    
+    def chunk_channel(img_channel):
+        chunked_channel = sliding_window_view(img_channel, (chunk_size, chunk_size))
+        chunked_channel = chunked_channel[::chunk_size, ::chunk_size]
+        chunked_channel = chunked_channel.reshape(-1, chunk_size, chunk_size)
+            
+        return chunked_channel
+    
+    chunk_channel_vec = np.vectorize(chunk_channel, signature='(n,m)->(i,x,y)')
+    
+    chunked_img = chunk_channel_vec(img)
+    chunked_img = chunked_img.transpose(1, 3, 2, 0)
+    
+    return chunked_img
+
+
+
+def lcm_pad(img, lcm):
+    H, W, C = img.shape
+    
+    if H % lcm == 0 and W % lcm == 0: return img
+    
+    nH, nW = H, W
+    
+    if H % lcm != 0:
+        nH = H + (H % lcm)
+    if W % lcm != 0:
+        nW = W + (W % lcm)
+        
+    padded_img = np.zeros((nH, nW, C))
+    padded_img[:H, :W, :C] = img
+    
+    return padded_img
 
 
 

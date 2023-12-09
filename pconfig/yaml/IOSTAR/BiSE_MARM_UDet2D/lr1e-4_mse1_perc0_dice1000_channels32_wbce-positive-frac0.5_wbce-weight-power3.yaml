@@ -1,0 +1,24 @@
+seed: 0
+dataset: IOSTAR
+model: BiSE_MARM_UDet2D
+device: cuda
+id: lr1e-4_mse1_perc0_dice1000_channels32_wbce-positive-frac0.5_wbce-weight-power3
+checkpoint_freq: 100
+model_arguments:
+  channels: 32
+  img_channels: 1
+optimizer_arguments:
+  epochs: 200
+  lr: 0.0001
+  valid_freq: 1
+  wbce_weight: 1
+  dice_weight: 1000
+  perc_weight: 0
+  weight_power: 3
+  wbce_positive_frac: 0.5
+dataset_arguments:
+  device: cpu
+  tile_size: 64
+  load_limit: ~
+dataloader_arguments:
+  batch_size: 4

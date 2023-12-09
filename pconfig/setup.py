@@ -17,6 +17,21 @@ from models.unet import (
     MARM_UNet2D, MARM_UNet3D,
     BiSE_MARM_UDet2D, BiSE_MARM_UDet3D, Alt_BiSE_MARM_UDet2D
 )
+from projectio import (
+    CTCDataset,
+    DRIVEDataset,
+    STAREDataset,
+    IOSTARDataset,
+    HRFDataset
+)
+
+__ctc_datasets__ = [
+    'BF-C2DL-HSC', 'BF-C2DL-MuSC',
+    'DIC-C2DH-HeLa', 'Fluo-C2DL-Huh7',
+    'Fluo-C2DL-MSC', 'Fluo-N2DH-GOWT1',
+    'Fluo-N2DH-SIM+', 'Fluo-N2DL-HeLa',
+    'PhC-C2DH-U373', 'PhC-C2DL-PSC'
+]
 
 def parse_config(fname: str) -> dict:
     with open(fname, 'r') as file:
@@ -32,6 +47,19 @@ def prepare_config(
     seed = config['seed']
     dataset = deepcopy(config['dataset'])
     model_name = deepcopy(config['model'])
+    
+    if dataset in __ctc_datasets__:
+        dataset_type = CTCDataset
+    elif dataset == 'DRIVE':
+        dataset_type = DRIVEDataset
+    elif dataset == 'STARE':
+        dataset_type = STAREDataset
+    elif dataset == 'IOSTAR':
+        dataset_type = IOSTARDataset
+    elif dataset == 'HRFDataset':
+        dataset_type = HRFDataset
+    else:
+        raise ValueError(f'invalid dataset "{dataset}" in config file')
     
     if model_name.lower() == 'unet2d':
         model = UNet2D
@@ -73,7 +101,7 @@ def prepare_config(
     dataloader_kwargs = deepcopy(config['dataloader_arguments'])
     dataset_kwargs = deepcopy(config['dataset_arguments'])
 
-    args = (seed, dataset, model, device, id, checkpoint_freq)
+    args = (seed, dataset, dataset_type, model, device, id, checkpoint_freq)
     kwargs = (model_kwargs, optim_kwargs, dataloader_kwargs, dataset_kwargs)
 
     out = (*args, *kwargs)
