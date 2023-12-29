@@ -139,6 +139,14 @@ def get_markers(imgs, erosion=20):
     
 
 
+def get_dummy_markers(arr, dim=1):
+    dummy = np.zeros_like(arr)
+    new_arr = np.concatenate((arr, dummy), axis=dim)
+    
+    return new_arr
+    
+
+
 def resolve_seg_conflicts(gt_seg, st_seg, threshold=10):
     gt_lab, gt_num_labels = ndimage.label(gt_seg)
     st_lab, st_num_labels = ndimage.label(st_seg)

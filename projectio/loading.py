@@ -22,6 +22,7 @@ from preprocessing import (
     normalize, 
     resize,
     get_markers,
+    get_dummy_markers,
     tile_split,
     lcm_pad
 )
@@ -296,11 +297,11 @@ class DRIVEDataset(Dataset):
         
         img_fps = [os.path.join(img_root, fp)for fp in sorted(
             os.listdir(img_root),
-            key=lambda x: int(x[:-12])
+            key=lambda x: int(x[:-13])
         )]
         seg_fps = [os.path.join(seg_root, fp)for fp in sorted(
             os.listdir(seg_root),
-            key=lambda x: int(x[:-12])
+            key=lambda x: int(x[:-13])
         )]
         
         num_imgs = len(img_fps)
@@ -338,14 +339,15 @@ class DRIVEDataset(Dataset):
         imgs, segs = [], []
         
         for img_fp, seg_fp in zip(img_fps, seg_fps):
-            img = np.array(Image.open(img_fp)) / 255
-            seg = np.array(Image.open(seg_fp))
+            img = sio.imread(img_fp) / 255
+            seg = sio.imread(seg_fp)
             
             seg = seg > 0
             seg = seg[..., np.newaxis]
             seg = lcm_pad(seg, self.tile_size)
             seg = tile_split(seg, self.tile_size)
             seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = get_dummy_markers(seg)
             seg = torch.tensor(seg).long().to(self.device)
             
             segs.append(seg)
@@ -469,15 +471,16 @@ class STAREDataset(Dataset):
         imgs, segs = [], []
         
         for img_fp, ah_fp, vk_fp in zip(img_fps, ah_fps, vk_fps):
-            img = np.array(Image.open(img_fp)) / 255
+            img = np.array(Image.open(img_fp).convert('RGB')) / 255
             ah = np.array(Image.open(ah_fp))
             vk = np.array(Image.open(vk_fp))
             
             seg = ((ah > 0) | (vk > 0))
             seg = seg[..., np.newaxis]
-            seg = lcm_pad(seg, lcm=self.tile_size)
+            seg = lcm_pad(seg, self.tile_size)
             seg = tile_split(seg, self.tile_size)
             seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = get_dummy_markers(seg)
             seg = torch.tensor(seg).long().to(self.device)
             
             segs.append(seg)
@@ -556,7 +559,7 @@ class IOSTARDataset(Dataset):
         )]
         seg_fps = [os.path.join(seg_root, fp)for fp in sorted(
             os.listdir(seg_root),
-            key=lambda x: int(x[5:-8])
+            key=lambda x: int(x[5:-11])
         )]
         
         num_imgs = len(img_fps)
@@ -594,7 +597,7 @@ class IOSTARDataset(Dataset):
         imgs, segs = [], []
         
         for img_fp, seg_fp in zip(img_fps, seg_fps):
-            img = np.array(Image.open(img_fp)) / 255
+            img = np.array(Image.open(img_fp).convert('RGB')) / 255
             seg = np.array(Image.open(seg_fp))
             
             seg = seg > 0
@@ -602,6 +605,7 @@ class IOSTARDataset(Dataset):
             seg = lcm_pad(seg, lcm=self.tile_size)
             seg = tile_split(seg, self.tile_size)
             seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = get_dummy_markers(seg)
             seg = torch.tensor(seg).long().to(self.device)
             
             segs.append(seg)
@@ -716,14 +720,15 @@ class HRFDataset(Dataset):
         imgs, segs = [], []
         
         for img_fp, seg_fp in zip(img_fps, seg_fps):
-            img = np.array(Image.open(img_fp)) / 255
-            seg = np.array(Image.open(seg_fp))
+            img = sio.imread(img_fp) / 255
+            seg = sio.imread(seg_fp)
             
             seg = seg > 0
             seg = seg[..., np.newaxis]
             seg = lcm_pad(seg, lcm=self.tile_size)
             seg = tile_split(seg, self.tile_size)
             seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = get_dummy_markers(seg)
             seg = torch.tensor(seg).long().to(self.device)
             
             segs.append(seg)

@@ -19,7 +19,8 @@ from projectio import (
     plot_and_save_metric,
     plot_and_save_visual,
     save_history_dict_and_model,
-    last_checkpoint
+    last_checkpoint,
+    get_dataset_type
 )
 from pconfig import (
     parse_config, 
@@ -168,8 +169,10 @@ def main():
     config_dict = parse_config(config_fname)
     config_tup = prepare_config(config_dict)
     
-    seed, dataset, dataset_type, model_type, device, id, checkpoint_freq, *rest = config_tup
+    seed, dataset, model_type, device, id, checkpoint_freq, *rest = config_tup
     model_kwargs, optim_kwargs, dataloader_kwargs, dataset_kwargs = rest
+    
+    dataset_type = get_dataset_type(dataset)
     
     set_seed(seed)
     
