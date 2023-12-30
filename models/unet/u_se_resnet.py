@@ -14,11 +14,11 @@ class U_SE_Resnet2D(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
         
-        if 'img_channels' in kwargs.keys():
-            self.channels = kwargs['img_channels']
+        if 'in_channels' in kwargs.keys():
+            self.channels = kwargs['in_channels']
         else:
             self.channels = 1
-        
+            
         self.features = smp.Unet(encoder_name='se_resnet50', *args, **kwargs)
         
         
