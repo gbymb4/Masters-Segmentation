@@ -38,3 +38,19 @@ def get_dataset_type(dataset):
         raise ValueError(f'invalid dataset "{dataset}" in config file')
         
     return dataset_type
+
+
+
+def get_dataset_res(dataset):
+    if isinstance(dataset, CTCDataset):
+        return [dataset.im_size, dataset.im_size]
+    elif isinstance(dataset, DRIVEDataset):
+        return [584, 565]
+    elif isinstance(dataset, STAREDataset):
+        return [700, 605]
+    elif isinstance(dataset, IOSTARDataset):
+        return [1024, 1024]
+    elif isinstance(dataset, HRFDataset):
+        return [3304, 2336]
+    else:
+        raise ValueError(f'invalid object instance "{type(dataset)}"')

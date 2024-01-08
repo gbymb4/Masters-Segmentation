@@ -5,12 +5,13 @@ Created on Mon Aug 28 17:24:51 2023
 @author: Gavin
 """
 
+import torch
+
 import numpy as np
 
 from scipy import ndimage
 from skimage import morphology, measure
 from skimage.transform import resize as r
-from numpy.lib.stride_tricks import sliding_window_view
 from .utils import find_closest_pairs, compute_centroids
 
 def resize(img, height, width):
@@ -27,21 +28,31 @@ def resize(img, height, width):
 
 
 def tile_split(img, chunk_size):
-    img = img.transpose(2, 1, 0)
+    dtype = img.dtype
+    in_shape = img.shape
     
-    def chunk_channel(img_channel):
-        chunked_channel = sliding_window_view(img_channel, (chunk_size, chunk_size))
-        chunked_channel = chunked_channel[::chunk_size, ::chunk_size]
-        chunked_channel = chunked_channel.reshape(-1, chunk_size, chunk_size)
+    H, W, C = in_shape
+    I, J = np.ceil(H / chunk_size), np.ceil(W / chunk_size)
+    I, J = int(I), int(J)
+    
+    tiles = np.zeros(((I * J), chunk_size, chunk_size, C))
+    
+    c = 0
+    for i in range(I):
+        for j in range(J):
+            tile = img[
+                chunk_size*i : chunk_size*(i+1), 
+                chunk_size*j : chunk_size*(j+1), 
+                :
+            ]
             
-        return chunked_channel
+            tiles[c] = tile
+            
+            c += 1
     
-    chunk_channel_vec = np.vectorize(chunk_channel, signature='(n,m)->(i,x,y)')
+    tiles = tiles.astype(dtype)
     
-    chunked_img = chunk_channel_vec(img)
-    chunked_img = chunked_img.transpose(1, 3, 2, 0)
-    
-    return chunked_img
+    return tiles
 
 
 
@@ -50,12 +61,8 @@ def lcm_pad(img, lcm):
     
     if H % lcm == 0 and W % lcm == 0: return img
     
-    nH, nW = H, W
-    
-    if H % lcm != 0:
-        nH = H + (H % lcm)
-    if W % lcm != 0:
-        nW = W + (W % lcm)
+    nH = H + (lcm - (H % lcm))
+    nW = W + (lcm - (W % lcm))
         
     padded_img = np.zeros((nH, nW, C))
     padded_img[:H, :W, :C] = img

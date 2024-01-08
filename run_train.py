@@ -11,7 +11,7 @@ import torch, random
 import numpy as np
 
 from optim import DefaultOptimizer, compute_all_metrics
-from postprocessing import full_postprocess, split_segs_markers
+from postprocessing import full_postprocess, split_segs_markers, stitch_tiles
 from projectio import (
     load_train,
     load_valid,
@@ -20,7 +20,8 @@ from projectio import (
     plot_and_save_visual,
     save_history_dict_and_model,
     last_checkpoint,
-    get_dataset_type
+    get_dataset_type,
+    get_dataset_res
 )
 from pconfig import (
     parse_config, 
@@ -36,11 +37,18 @@ def set_seed(seed):
 
 
 def dump_test_metrics(model, testloader, dataset, id, device):
+    dataset_res = H, W = get_dataset_res(testloader.dataset)
+    tile_size = testloader.dataset.tile_size
+    I, J = np.ceil(H / tile_size), np.ceil(W / tile_size)
+    count_threshold = I * J
+    
     test_num_slides = 0
+    buffer_count = 0
 
     model = model.eval()
     
     history_record = {}
+    seg_buffer, pred_buffer = [], []
 
     for batch in testloader:
         xs, ys = batch
@@ -57,15 +65,44 @@ def dump_test_metrics(model, testloader, dataset, id, device):
         ys_segs, ys_markers = split_segs_markers(ys)
         post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
         
-        metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
-                
-        for name, score in metric_scores.items():
-            if name not in history_record.keys():
-                history_record[name] = score * batch_size
-            else:
-                history_record[name] += score * batch_size
+        buffer_count += batch_size
+        
+        if buffer_count >= count_threshold:
+            diff = buffer_count - count_threshold
+            
+            if diff == 0:
+                diff = batch_size
 
-        test_num_slides += len(xs)
+            pred_buffer.append(post_pred_segs[:diff])
+            seg_buffer.append(ys_segs[:diff])
+            
+            f_post_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+            f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
+        
+            metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
+                    
+            for name, score in metric_scores.items():
+                if name not in history_record.keys():
+                    history_record[name] = score
+                else:
+                    history_record[name] += score
+
+            test_num_slides += 1
+            
+            if diff == batch_size:
+                pred_buffer = [post_pred_segs[diff:]]
+                seg_buffer = [ys_segs[diff:]]
+            else:
+                pred_buffer = []
+                seg_buffer = []
+            
+            buffer_count = diff
+            
+        else:
+            pred_buffer.append(post_pred_segs)
+            seg_buffer.append(ys_segs)
+            
+            buffer_count += batch_size
     
     history_record = {
         f'test_{name}': w_score / test_num_slides for name, w_score in history_record.items()

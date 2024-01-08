@@ -5,6 +5,10 @@ Created on Mon Aug 28 16:13:11 2023
 @author: Gavin
 """
 
+import numpy as np
+
+from skimage.measure import label
+from scipy.ndimage import binary_hit_or_miss
 from .loss import HardDiceLoss
 
 def accuracy(pred, true):
@@ -80,6 +84,43 @@ def iou(pred, true):
 
 
 
+def betti_error(pred, true):
+    pred = pred.detach().cpu().numpy()
+    true = (true > 0).detach().cpu().numpy()
+
+    pred = pred.transpose(0, 4, 3, 2, 1)[..., 0, 0]
+    true = true.transpose(0, 4, 3, 2, 1)[..., 0, 0]
+    
+    def compute_betti_error(p, t):
+        p_b0, t_b0 = compute_betti_0(p), compute_betti_0(t)
+        p_b1, t_b1 = compute_betti_1(p), compute_betti_1(t)
+    
+        error = np.abs(p_b0 - t_b0) + np.abs(p_b1 - t_b1)
+    
+        return error
+    
+    def compute_betti_0(img):
+        labeled_img, num_labels = label(img, connectivity=2, return_num=True)
+
+        chi = num_labels - (len(np.unique(labeled_img)) - 1)
+        b0 = num_labels - chi
+        
+        return b0
+    
+    def compute_betti_1(img):
+        skeleton = binary_hit_or_miss(img)
+        _, num_skeleton_labels = label(skeleton, connectivity=2, return_num=True)
+        b1 = num_skeleton_labels
+    
+        return b1
+    
+    errors = [compute_betti_error(p, t) for p, t in zip(pred, true)]
+    avg_error = sum(errors) / len(errors)
+    
+    return avg_error
+
+
+
 def compute_all_metrics(pred, true, epsilon=1-7):
     results = {}
     
@@ -92,6 +133,7 @@ def compute_all_metrics(pred, true, epsilon=1-7):
     results['npv'] = npv(pred, true)
     results['hard_dice'] = hard_dice(pred, true, epsilon=1-7)
     results['iou'] = iou(pred, true)
+    results['betti_error'] = betti_error(pred, true)
     
     f1_num = results['ppv'] * results['sensitivity']
     f1_den = results['ppv'] + results['sensitivity']

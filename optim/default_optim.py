@@ -12,7 +12,13 @@ import numpy as np
 
 from torch import nn
 from torch.utils.data import DataLoader
-from postprocessing import full_postprocess, threshold, split_segs_markers
+from postprocessing import (
+    full_postprocess, 
+    threshold, 
+    split_segs_markers,
+    stitch_tiles
+)
+from projectio import get_dataset_res
 from .loss import CompositeLoss
 from .metrics import compute_all_metrics
 
@@ -67,6 +73,7 @@ class DefaultOptimizer:
         wbce_weight=1,
         dice_weight=100,
         perc_weight=1,
+        div_weight=1,
         weight_power=5,
         verbose=True,
         checkpoint_callback=None,
@@ -86,10 +93,16 @@ class DefaultOptimizer:
             wbce_weight=wbce_weight,
             dice_weight=dice_weight,
             perc_weight=perc_weight,
+            div_weight=div_weight,
             weight_power=weight_power,
             epochs=epochs,
             device=self.device
         )
+        
+        dataset_res = H, W = get_dataset_res(self.train_loader.dataset)
+        tile_size = self.train_loader.dataset.tile_size
+        I, J = np.ceil(H / tile_size), np.ceil(W / tile_size)
+        count_threshold = int(I * J)
         
         print('#'*32)
         print('beginning BP training loop...')
@@ -133,6 +146,7 @@ class DefaultOptimizer:
                 ys_segs, ys_markers = split_segs_markers(ys)
                 post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
                 
+                # Betti Error metric not correctly implemented for training
                 metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
                         
                 for name, score in metric_scores.items():
@@ -162,6 +176,9 @@ class DefaultOptimizer:
                 
                 metrics_dict = {}
     
+                buffer_count = 0
+                seg_buffer, pred_buffer = [], []
+    
                 for batch in self.valid_loader:
                     xs, ys = batch
                     
@@ -182,15 +199,44 @@ class DefaultOptimizer:
                     ys_segs, ys_markers = split_segs_markers(ys)
                     post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
                     
-                    metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
-                            
-                    for name, score in metric_scores.items():
-                        if name not in metrics_dict.keys():
-                            metrics_dict[name] = score * batch_size
-                        else:
-                            metrics_dict[name] += score * batch_size
+                    buffer_count += batch_size
+                    
+                    if buffer_count >= count_threshold:
+                        diff = buffer_count - count_threshold
+                        
+                        if diff == 0:
+                            diff = batch_size
 
-                    valid_num_slides += len(xs)
+                        pred_buffer.append(post_pred_segs[:diff])
+                        seg_buffer.append(ys_segs[:diff])
+                        
+                        f_post_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+                        f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
+                    
+                        metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
+                                
+                        for name, score in metric_scores.items():
+                            if name not in metrics_dict.keys():
+                                metrics_dict[name] = score 
+                            else:
+                                metrics_dict[name] += score 
+
+                        valid_num_slides += 1
+                        
+                        if diff == batch_size:
+                            pred_buffer = [post_pred_segs[diff:]]
+                            seg_buffer = [ys_segs[diff:]]
+                        else:
+                            pred_buffer = []
+                            seg_buffer = []
+                        
+                        buffer_count = diff
+                        
+                    else:
+                        pred_buffer.append(post_pred_segs)
+                        seg_buffer.append(ys_segs)
+                        
+                        buffer_count += batch_size
 
                 history_record['valid_loss'] = valid_loss
                 history_record['valid_norm_loss'] = valid_loss / valid_num_slides

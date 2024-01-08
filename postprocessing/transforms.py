@@ -61,3 +61,40 @@ def full_postprocess(pred, true_threshold=0.5, area_threshold=50):
     pred = clean_outliers(pred, area_threshold)
     
     return pred
+
+
+
+def stitch_tiles(imgs, out_res):    
+    if isinstance(imgs, list):
+        imgs = torch.cat(imgs, dim=0)
+    
+    device = imgs.device
+    dtype = imgs.dtype
+    
+    in_shape = imgs.shape
+    tile_size = in_shape[-1]
+    
+    H, W = out_res
+    I, J = np.ceil(H / in_shape[-1]), np.ceil(W / in_shape[-2])
+    I, J = int(I), int(J)
+    
+    stitched_imgs = np.zeros((1, *in_shape[1:-2], J * in_shape[-2], I * in_shape[-1]))
+    
+    c = 0
+    for i in range(I):
+        for j in range(J):
+            tile = imgs[c].detach().cpu().numpy()
+            
+            stitched_imgs[
+                :, :, :,
+                tile_size*j : tile_size*(j+1),
+                tile_size*i : tile_size*(i+1)
+            ] = tile
+    
+            c += 1
+    
+    stitched_imgs = stitched_imgs[..., :W, :H]
+    stitched_imgs = torch.from_numpy(stitched_imgs).to(dtype)
+    stitched_imgs = stitched_imgs.to(device)
+    
+    return stitched_imgs

@@ -16,8 +16,8 @@ import numpy as np
 from projectio import *
 from skimage import feature
 import scipy.ndimage as ndi
-from scipy.ndimage import convolve, gaussian_filter
-import scipy.ndimage as ndi
+from scipy.ndimage import convolve, gaussian_filter, binary_erosion
+from skimage.morphology import skeletonize
 
 seed = 0
 
@@ -25,10 +25,11 @@ torch.manual_seed(seed)
 random.seed(seed)
 np.random.seed(seed)
 
-d = STAREDataset('STARE', 'train', load_limit=1, tile_size=128)
+d = STAREDataset('STARE', 'train', load_limit=1, tile_size=96)
 
 count = 0
 for img, seg in iter(d):
+    print(img.shape)
     img = img.detach().cpu().numpy()[:, 0, ...].transpose(2, 1, 0)
     seg = seg.detach().cpu().numpy()[:1, 0, ...].transpose(2, 1, 0)
     
@@ -37,9 +38,11 @@ for img, seg in iter(d):
     pad = 8
     
     seg_pad = np.zeros((H + pad, W + pad, C))
-    seg_pad[pad // 2 : H + pad // 2, pad // 2 : W + pad // 2, :] = seg    
+    seg_pad[pad // 2 : H + pad // 2, pad // 2 : W + pad // 2, :] = seg
+    seg_pad = seg_pad[..., 0]
+    seg_pad = skeletonize(seg_pad) | binary_erosion(seg_pad, iterations=2)
     
-    border = feature.canny(seg_pad[..., 0], low_threshold=.1, use_quantiles=True)
+    border = feature.canny(seg_pad, low_threshold=.1, use_quantiles=True)
     border = border[pad // 2 : H + pad // 2, pad // 2 : W + pad // 2]
     
     indices = np.argwhere(border == 1)
@@ -71,8 +74,7 @@ for img, seg in iter(d):
     
     def compute_divergence(vector_field):
         # Extract the vector field components
-        u = vector_field[0, :, :]
-        v = vector_field[1, :, :]
+        u, v = vector_field
     
         # Compute the partial derivatives along the x and y axes
         du_dx = np.gradient(u, axis=1)
@@ -86,7 +88,6 @@ for img, seg in iter(d):
     coulomb_mag_map = np.sqrt((coulomb_vec_map[0] ** 2) + (coulomb_vec_map[1] ** 2))
     coulomb_div_map = compute_divergence(coulomb_vec_map)
     
-    #coulomb_div_map = np.abs(coulomb_div_map)
     coulomb_div_map[np.isnan(coulomb_div_map)] = 1
     coulomb_div_map[coulomb_div_map < 0] = 0
     coulomb_div_map[seg[..., 0] > 0] = 0

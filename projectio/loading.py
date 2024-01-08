@@ -65,6 +65,7 @@ class CTCDataset(Dataset):
         partition, 
         device='cpu', 
         im_size=None,
+        tile_size=None,
         load_limit=None
     ):
         root_dir = DATA_ROOT
@@ -72,6 +73,7 @@ class CTCDataset(Dataset):
         self.partition = partition
         self.device = device
         self.im_size = im_size
+        self.tile_size = tile_size
         
         if partition.lower() == 'train' or partition.lower() == 'valid' or partition.lower() == 'test':
             
@@ -205,7 +207,10 @@ class CTCDataset(Dataset):
             elif len(img.shape) == 2:
                 img = img[np.newaxis, :, :, np.newaxis]
                 
-            img = np.transpose(img, (3, 0, 2, 1))
+            img = np.transpose(img, (3, 2, 1, 0))
+            img = np.concatenate([tile_split(i, self.tile_size) for i in img], axis=0)
+            
+            img = np.transpose(img, (0, 3, 2, 1))
             img = torch.tensor(img).float().to(self.device)
             
             imgs.append(img)
@@ -255,7 +260,10 @@ class CTCDataset(Dataset):
                     
                 seg = seg[np.newaxis, :, :, np.newaxis]
             
-            seg = np.transpose(seg, (3, 0, 2, 1))
+            seg = np.transpose(seg, (3, 2, 1, 0))
+            seg = np.concatenate([tile_split(i, self.tile_size) for i in seg], axis=0)
+            
+            seg = np.transpose(seg, (0, 3, 2, 1))
             
             markers = get_markers(seg)
             
