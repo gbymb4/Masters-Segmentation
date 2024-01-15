@@ -6,7 +6,8 @@ Created on Mon Sep 18 14:02:19 2023
 """
 
 from torch import nn
-from ._core import SEFusion, ConvBlock, BiFPN_Head
+from ._core import BiFPN_Head
+from .._core import SEFusion, ConvBlock
 
 class SE_BiFPPNBlock(nn.Module):
     

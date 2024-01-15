@@ -7,7 +7,10 @@ Created on Mon Aug 28 16:09:35 2023
 
 import torch, math
 
+#import torch.functional as F
+
 from torch import nn
+from models import SqueezeExcitation, ConvBlock, SEFusion
 
 # based on implementation from https://github.com/TsukamotoShuchi/RCNN/blob/master/rcnnblock.py
 class RCL2D(nn.Module):
@@ -353,13 +356,51 @@ class AttentionBlock3D(AttentionBlock2D):
     
     
     
+class MultiAttentionBlock2D(nn.Module):
+    
+    def __init__(self, channels):
+        super().__init__()
+        
+        self.spatial = AttentionBlock2D(1)
+        self.channel = SqueezeExcitation(channels, channels)
+        self.conv = ConvBlock(channels, channels)
+        self.activation = nn.Sigmoid()
+    
+    
+    
+    def forward(self, x):
+        if len(x.shape) == 4:
+            dim = 0
+        elif len(x.shape) == 5:
+            dim = 1
+        
+        s_out = self.spatial(torch.mean(x, dim=dim, keepdim=True))
+        c_out = self.channel(x)
+        
+        out = s_out * c_out
+        out = self.conv(out)
+        out = self.activation(out)
+        
+        return out
+        
+        
+        
+class MultiAttentionBlock3D(MultiAttentionBlock2D):
+    
+    def __init__(self, channels):
+        super().__init__(channels)
+        
+        self.spatial = AttentionBlock3D(1)
+    
+    
+    
 class MAMRCL2D(RCL2D):
     
     def __init__(self, channels, steps=2):
         super().__init__(channels, steps)
         
         self.conv = MAMBlock2D(channels)
-    
+        
     
     
 class MAMBlock2D(nn.Module):
@@ -379,7 +420,7 @@ class MAMBlock2D(nn.Module):
         encdec = self.ed(residual)
         att = self.att(residual)      
 
-        out = (residual * att) + encdec
+        out = residual + (residual * att) + encdec
         
         return out
     
@@ -572,7 +613,7 @@ class MARMEL2D(RREL2D):
         )
         bn = nn.BatchNorm3d(out_channels)
         a = nn.ReLU(inplace=True)
-        b = MAMBlock2D(out_channels)
+        b = MAMRCL2D(out_channels)
         
         layers.extend((cn, bn, a, b))
         
@@ -726,7 +767,160 @@ class MARMEL3D(MARMEL2D):
         )
         bn = nn.BatchNorm3d(out_channels)
         a = nn.ReLU(inplace=True)
-        b = MAMBlock2D(out_channels)
+        b = MAMRCL3D(out_channels)
+        
+        layers.extend((cn, bn, a, b))
+        
+        self.features = nn.Sequential(*layers)
+        
+        
+        
+class SERes2NetBlock2D(nn.Module):
+    
+    def __init__(self, in_channels, out_channels, **kwargs):
+        super().__init__()
+        
+        self.res = Res2NetBlock2D(in_channels, out_channels, **kwargs)
+        self.se = SqueezeExcitation(out_channels, out_channels)
+        
+        
+        
+    def forward(self, x):
+        out = self.se(self.res(x))
+        out = out + x
+        
+        return out
+    
+    
+    
+class SERes2NetBlock3D(SERes2NetBlock2D):
+    
+    def __init__(self, in_channels, out_channels, **kwargs):
+        super().__init__(in_channels, out_channels, **kwargs)
+        
+        self.res = Res2NetBlock3D(in_channels, out_channels, **kwargs)
+        
+        
+        
+class MARBlock2D(MAMBlock2D):
+    
+    def __init__(self, channels):
+        super().__init__(channels)
+        
+        self.res = SERes2NetBlock2D(channels, channels)
+        self.ed = EncDecBlock2D(channels)
+        self.att = MultiAttentionBlock2D(channels)
+
+
+
+class MARBlock3D(MAMBlock3D):
+    
+    def __init__(self, channels):
+        super().__init__(channels)
+        
+        self.res = SERes2NetBlock3D(channels, channels)
+        self.ed = EncDecBlock3D(channels)
+        self.att = MultiAttentionBlock3D(channels)
+        
+        
+        
+class MARRCL2D(nn.Module):
+    
+    def __init__(self, channels, steps=3):
+        super().__init__()
+        
+        self.conv = MARBlock2D(channels)
+        self.bn = nn.ModuleList([nn.BatchNorm3d(channels) for i in range(steps)])
+        self.relu = nn.ReLU(inplace=True)
+        self.steps = steps
+        self.shortcut = SERes2NetBlock2D(channels, channels)
+        self.fuse = SEFusion(channels, 2)
+
+
+
+    def forward(self, x):
+        rx = x
+        for i in range(self.steps):
+            if i == 0:
+                z = self.conv(x)
+            else:
+                
+                z = self.fuse(self.conv(x), self.shortcut(rx))
+            x = self.relu(z)
+            x = self.bn[i](x)
+        return x
+    
+    
+    
+class MARRCL3D(MARRCL2D):
+    
+    def __init__(self, channels, steps=3):
+        super().__init__(channels, steps)
+        
+        self.conv = MARBlock3D(channels)
+        self.shortcut = SERes2NetBlock3D(channels, channels)
+        
+        
+        
+class MAREL2D(RREL2D):
+    
+    def __init__(self, in_channels, out_channels, enc_ratio):
+        super().__init__(in_channels, out_channels, enc_ratio)
+        
+        layers = []
+        if enc_ratio >= 2:
+            mp = nn.MaxPool3d(
+                kernel_size=(1, enc_ratio, enc_ratio), 
+                stride=(1, enc_ratio, enc_ratio)
+            )
+            
+            layers.append(mp)
+        elif enc_ratio < 1:
+            raise ValueError('enc_ratio must be an integer and 1 or larger')
+        
+        cn = nn.Conv3d(
+            in_channels, 
+            out_channels, 
+            kernel_size=(1, 3, 3),
+            padding=(0, 1, 1),
+            stride=(1, 1, 1)
+        )
+        bn = nn.BatchNorm3d(out_channels)
+        a = nn.ReLU(inplace=True)
+        b = MARRCL2D(out_channels)
+        
+        layers.extend((cn, bn, a, b))
+        
+        self.features = nn.Sequential(*layers)
+        
+        
+        
+class MAREL3D(RREL3D):
+    
+    def __init__(self, in_channels, out_channels, enc_ratio):
+        super().__init__(in_channels, out_channels, enc_ratio)
+        
+        layers = []
+        if enc_ratio >= 2:
+            mp = nn.MaxPool3d(
+                kernel_size=(1, enc_ratio, enc_ratio), 
+                stride=(1, enc_ratio, enc_ratio)
+            )
+            
+            layers.append(mp)
+        elif enc_ratio < 1:
+            raise ValueError('enc_ratio must be an integer and 1 or larger')
+        
+        cn = nn.Conv3d(
+            in_channels, 
+            out_channels, 
+            kernel_size=(1, 3, 3),
+            padding=(0, 1, 1),
+            stride=(1, 1, 1)
+        )
+        bn = nn.BatchNorm3d(out_channels)
+        a = nn.ReLU(inplace=True)
+        b = MARRCL3D(out_channels)
         
         layers.extend((cn, bn, a, b))
         
