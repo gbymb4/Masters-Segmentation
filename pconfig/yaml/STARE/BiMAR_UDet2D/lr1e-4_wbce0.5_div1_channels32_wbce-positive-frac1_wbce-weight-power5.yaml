@@ -1,6 +1,6 @@
 seed: 0
 dataset: STARE
-model: BiMAR_UDet
+model: BiMAR_UDet2D
 device: cuda
 id: lr1e-4_wbce0.5_div1_channels32_wbce-positive-frac1_wbce-weight-power5
 checkpoint_freq: 100
