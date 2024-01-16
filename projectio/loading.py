@@ -208,7 +208,10 @@ class CTCDataset(Dataset):
                 img = img[np.newaxis, :, :, np.newaxis]
                 
             img = np.transpose(img, (3, 2, 1, 0))
-            img = np.concatenate([tile_split(i, self.tile_size) for i in img], axis=0)
+            img = np.concatenate([tile_split(
+                lcm_pad(i, self.tile_size), 
+                self.tile_size
+            ) for i in img], axis=0)
             
             img = np.transpose(img, (0, 3, 2, 1))
             img = torch.tensor(img).float().to(self.device)
@@ -261,7 +264,10 @@ class CTCDataset(Dataset):
                 seg = seg[np.newaxis, :, :, np.newaxis]
             
             seg = np.transpose(seg, (3, 2, 1, 0))
-            seg = np.concatenate([tile_split(i, self.tile_size) for i in seg], axis=0)
+            seg = np.concatenate([tile_split(
+                lcm_pad(i, self.tile_size),
+                self.tile_size
+            ) for i in seg], axis=0)
             
             seg = np.transpose(seg, (0, 3, 2, 1))
             

@@ -15,7 +15,8 @@ from models.unet import (
     SAR2UNet2D, SAR2UNet3D,
     U_SE_Resnet2D,
     MARM_UNet2D, MARM_UNet3D,
-    BiSE_MARM_UDet2D, BiSE_MARM_UDet3D, Alt_BiSE_MARM_UDet2D
+    BiSE_MARM_UDet2D, BiSE_MARM_UDet3D, Alt_BiSE_MARM_UDet2D,
+    BiMAR_UDet2D, BiMAR_UDet3D
 )
 
 
@@ -64,6 +65,10 @@ def prepare_config(
         model = BiSE_MARM_UDet3D
     elif model_name.lower() == 'alt_bise_marm_udet2d':
         model = Alt_BiSE_MARM_UDet2D
+    elif model_name.lower() == 'bimar_udet2d':
+        model = BiMAR_UDet2D
+    elif model_name.lower() == 'bimar_udet3d':
+        model = BiMAR_UDet3D
     else:
         raise ValueError(f'invalid model type "{model_name}" in config file')
 

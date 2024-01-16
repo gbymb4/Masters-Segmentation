@@ -5,10 +5,6 @@ Created on Mon Aug 28 16:10:54 2023
 @author: Gavin
 """
 
-from models.unet import BiMAR_UDet2D
+from projectio import CTCDataset
 
-model = BiMAR_UDet2D(32, 1).cuda()
-
-import torchsummary as ts
-
-ts.summary(model, (1, 1, 256, 256))
+CTCDataset('PhC-C2DL-PSC', 'train', im_size=512, tile_size=96, load_limit=1)
