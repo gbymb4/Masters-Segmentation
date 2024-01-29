@@ -219,7 +219,8 @@ class CTCDataset(Dataset):
             imgs.append(img)
             
         imgs = torch.cat(imgs, dim=0)
-            
+        imgs = imgs.unsqueeze(dim=1)
+        
         return imgs
             
     
@@ -279,6 +280,7 @@ class CTCDataset(Dataset):
             segs.append(seg)
             
         segs = torch.cat(segs, dim=0)
+        segs = segs.unsqueeze(dim=1)
         
         return segs
 
