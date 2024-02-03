@@ -235,8 +235,6 @@ class DefaultOptimizer:
                     else:
                         pred_buffer.append(post_pred_segs)
                         seg_buffer.append(ys_segs)
-                        
-                        buffer_count += batch_size
 
                 history_record['valid_loss'] = valid_loss
                 history_record['valid_norm_loss'] = valid_loss / valid_num_slides

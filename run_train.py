@@ -101,8 +101,6 @@ def dump_test_metrics(model, testloader, dataset, id, device):
         else:
             pred_buffer.append(post_pred_segs)
             seg_buffer.append(ys_segs)
-            
-            buffer_count += batch_size
     
     history_record = {
         f'test_{name}': w_score / test_num_slides for name, w_score in history_record.items()
