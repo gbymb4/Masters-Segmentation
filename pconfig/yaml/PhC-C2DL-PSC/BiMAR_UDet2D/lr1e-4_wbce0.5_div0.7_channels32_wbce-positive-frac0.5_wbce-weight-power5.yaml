@@ -2,7 +2,7 @@ seed: 0
 dataset: PhC-C2DL-PSC
 model: BiMAR_UDet2D
 device: cuda
-id: lr1e-4_wbce0.5_div1_channels32_wbce-positive-frac0.5_wbce-weight-power5
+id: lr1e-4_wbce0.5_div0.7_channels32_wbce-positive-frac0.5_wbce-weight-power5
 checkpoint_freq: 100
 model_arguments:
   channels: 32
