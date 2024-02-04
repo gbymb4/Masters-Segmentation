@@ -39,7 +39,7 @@ def set_seed(seed):
 def dump_test_metrics(model, testloader, dataset, id, device):
     dataset_res = H, W = get_dataset_res(testloader.dataset)
     tile_size = testloader.dataset.tile_size
-    I, J = np.ceil(H / tile_size), np.ceil(W / tile_size)
+    I, J = int(np.ceil(H / tile_size)), int(np.ceil(W / tile_size))
     count_threshold = I * J
     
     test_num_slides = 0
@@ -166,12 +166,17 @@ def dump_visualisations(
         pred_segs, pred_markers = split_segs_markers(preds)
         post_pred_segs, post_pred_markers = split_segs_markers(post_preds)
         
-        xs = xs.reshape(-1, *xs.shape[-2:])
-        ys = ys.reshape(-1, *ys.shape[-2:])
-        preds = preds.reshape(-1, *preds.shape[-2:])
-        post_preds = post_preds.reshape(-1, *post_preds.shape[-2:])
-                
-        for x, y, pred, post_pred in zip(xs, ys_segs, pred_segs, post_pred_segs):
+        xs = torch.permute(xs, (0, 2, 4, 3, 1))
+        ys = torch.permute(ys, (0, 2, 4, 3, 1))
+        preds = torch.permute(preds, (0, 2, 4, 3, 1))
+        post_preds = torch.permute(post_pred_segs, (0, 2, 4, 3, 1))
+        
+        xs = xs.reshape(-1, *xs.shape[2:])
+        ys = ys.reshape(-1, *ys.shape[2:])[..., :1]
+        preds = preds.reshape(-1, *preds.shape[2:])[..., :1]
+        post_preds = post_preds.reshape(-1, *post_preds.shape[2:])
+        
+        for x, y, pred, post_pred in zip(xs, ys, preds, post_preds):
             if plot_num is not None and num_saved >= plot_num: return
             
             y = y > 0

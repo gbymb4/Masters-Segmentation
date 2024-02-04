@@ -52,7 +52,12 @@ def plot_and_save_visual(img, true, pred, post_pred, fname):
             ['Input', 'GT', 'Prediction', 'Postprocessed']
     ):
         ax.axis('off')
-        ax.imshow(tensor.detach().cpu().numpy().transpose(1, 0), cmap='gray')
+        
+        if tensor.shape[-1] == 1:
+            ax.imshow(tensor.detach().cpu().numpy(), cmap='gray')
+        else:
+            ax.imshow(tensor.detach().cpu().numpy())
+        
         ax.set_title(title, fontsize=24)
     
     plt.savefig(fname)
