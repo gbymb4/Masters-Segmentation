@@ -66,38 +66,34 @@ def dump_test_metrics(model, testloader, dataset, id, device):
         post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
         
         buffer_count += batch_size
+        full_buffers = buffer_count // count_threshold
         
-        if buffer_count >= count_threshold:
-            diff = buffer_count - count_threshold
+        if full_buffers > 0:
+            buffer_tail = buffer_count - (count_threshold * full_buffers)
             
-            if diff == 0:
-                diff = batch_size
+            batch_head = batch_size - buffer_tail
 
-            pred_buffer.append(post_pred_segs[:diff])
-            seg_buffer.append(ys_segs[:diff])
+            pred_buffer.append(post_pred_segs[:batch_head])
+            seg_buffer.append(ys_segs[:batch_head])
             
             f_post_pred_segs = stitch_tiles(pred_buffer, dataset_res)
             f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
         
             metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
-                    
+            
             for name, score in metric_scores.items():
                 if name not in history_record.keys():
-                    history_record[name] = score
+                    history_record[name] = score * full_buffers
                 else:
-                    history_record[name] += score
+                    history_record[name] += score * full_buffers
 
-            test_num_slides += 1
+            test_num_slides += full_buffers
             
-            if diff == batch_size:
-                pred_buffer = [post_pred_segs[diff:]]
-                seg_buffer = [ys_segs[diff:]]
-            else:
-                pred_buffer = []
-                seg_buffer = []
+            pred_buffer = [post_pred_segs[batch_head:]]
+            seg_buffer = [ys_segs[batch_head:]]
             
-            buffer_count = diff
-            
+            buffer_count = buffer_tail
+        
         else:
             pred_buffer.append(post_pred_segs)
             seg_buffer.append(ys_segs)

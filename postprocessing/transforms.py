@@ -78,15 +78,26 @@ def stitch_tiles(imgs, out_res):
     I, J = np.ceil(H / in_shape[-1]), np.ceil(W / in_shape[-2])
     I, J = int(I), int(J)
     
-    stitched_imgs = np.zeros((1, *in_shape[1:-2], J * in_shape[-2], I * in_shape[-1]))
+    stitched_threshold = I * J
+    num_stitched_imgs = imgs.shape[0] // stitched_threshold
+    
+    stitched_imgs = np.zeros((
+        num_stitched_imgs,
+        *in_shape[1:-2],
+        J * in_shape[-2],
+        I * in_shape[-1]
+    ))
     
     c = 0
     for i in range(I):
         for j in range(J):
             tile = imgs[c].detach().cpu().numpy()
             
+            placement_dim = c // stitched_threshold
+            
             stitched_imgs[
-                :, :, :,
+                placement_dim : placement_dim+1, 
+                :, :,
                 tile_size*j : tile_size*(j+1),
                 tile_size*i : tile_size*(i+1)
             ] = tile
