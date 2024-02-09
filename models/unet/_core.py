@@ -362,7 +362,15 @@ class MultiAttentionBlock2D(nn.Module):
         super().__init__()
         
         self.spatial = AttentionBlock2D(1)
-        self.channel = SqueezeExcitation(channels, channels)
+        
+        class Identity(nn.Module):
+            
+            def forward(self2, x):
+                return x
+        
+        self.spatial.aout = Identity()
+        
+        self.channel = SqueezeExcitation(channels, channels).features[:-1]
         self.conv = ConvBlock(channels, channels)
         self.activation = nn.Sigmoid()
     
