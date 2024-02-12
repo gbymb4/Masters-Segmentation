@@ -316,7 +316,7 @@ class DRIVEDataset(Dataset):
         )]
         seg_fps = [os.path.join(seg_root, fp)for fp in sorted(
             os.listdir(seg_root),
-            key=lambda x: int(x[:-13])
+            key=lambda x: int(x[:-12])
         )]
         
         num_imgs = len(img_fps)
