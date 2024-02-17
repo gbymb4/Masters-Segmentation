@@ -59,11 +59,8 @@ def dump_test_metrics(model, testloader, dataset, id, device):
         batch_size = len(xs)
 
         pred = model(xs)
-
-        post_pred = full_postprocess(pred)
         
         ys_segs, ys_markers = split_segs_markers(ys)
-        post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
         
         buffer_count += batch_size
         full_buffers = buffer_count // count_threshold
@@ -73,10 +70,14 @@ def dump_test_metrics(model, testloader, dataset, id, device):
             
             batch_head = batch_size - buffer_tail
 
-            pred_buffer.append(post_pred_segs[:batch_head])
+            pred_buffer.append(pred[:batch_head])
             seg_buffer.append(ys_segs[:batch_head])
             
-            f_post_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+            f_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+            
+            f_post_pred = full_postprocess(f_pred_segs)
+            f_post_pred_segs, f_post_pred_markers = split_segs_markers(f_post_pred)
+
             f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
         
             metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
@@ -89,13 +90,13 @@ def dump_test_metrics(model, testloader, dataset, id, device):
 
             test_num_slides += full_buffers
             
-            pred_buffer = [post_pred_segs[batch_head:]]
+            pred_buffer = [pred[batch_head:]]
             seg_buffer = [ys_segs[batch_head:]]
             
             buffer_count = buffer_tail
         
         else:
-            pred_buffer.append(post_pred_segs)
+            pred_buffer.append(pred)
             seg_buffer.append(ys_segs)
     
     history_record = {

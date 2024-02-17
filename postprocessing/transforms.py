@@ -56,7 +56,7 @@ def clean_outliers(pred, area_threshold=50):
     
     
     
-def full_postprocess(pred, true_threshold=0.5, area_threshold=50):
+def full_postprocess(pred, true_threshold=0.5, area_threshold=32):
     pred = threshold(pred, true_threshold)
     pred = clean_outliers(pred, area_threshold)
     
