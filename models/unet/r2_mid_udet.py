@@ -7,18 +7,18 @@ Created on Mon Jan 15 14:17:48 2024
 
 from torch import nn
 from models.bifpn import SE_BiFPN
-from ._core import MAREL2D, RRDL2D, MAREL3D, RRDL3D
+from ._core import RREL2D, RRDL2D, RREL3D, RRDL3D
 
-class BiMAR_UDet2D(nn.Module):
+class R2MidUDet2D(nn.Module):
     
     def __init__(self, channels, img_channels=1, height=5, length=2):
         super().__init__()
         
-        self.marel1 = MAREL2D(img_channels, channels, 1)
-        self.marel2 = MAREL2D(channels, channels * 2, 2)
-        self.marel3 = MAREL2D(channels * 2, channels * 4, 2)
-        self.marel4 = MAREL2D(channels * 4, channels * 8, 2)
-        self.marel5 = MAREL2D(channels * 8, channels * 16, 2)
+        self.rrel1 = RREL2D(img_channels, channels, 1)
+        self.rrel2 = RREL2D(channels, channels * 2, 2)
+        self.rrel3 = RREL2D(channels * 2, channels * 4, 2)
+        self.rrel4 = RREL2D(channels * 4, channels * 8, 2)
+        self.rrel5 = RREL2D(channels * 8, channels * 16, 2)
         
         self.rrdl6 = RRDL2D(channels * 16, channels * 8, 2)
         self.rrdl7 = RRDL2D(channels * 8, channels * 4, 2)
@@ -39,11 +39,11 @@ class BiMAR_UDet2D(nn.Module):
 
     
     def forward(self, x):
-        out1 = self.marel1(x)
-        out2 = self.marel2(out1)
-        out3 = self.marel3(out2)
-        out4 = self.marel4(out3)
-        out5 = self.marel5(out4)
+        out1 = self.rrel1(x)
+        out2 = self.rrel2(out1)
+        out3 = self.rrel3(out2)
+        out4 = self.rrel4(out3)
+        out5 = self.rrel5(out4)
         
         for bifpn_block in self.se_bifpn:
             out1, out2, out3, out4, out5 = bifpn_block(
@@ -64,16 +64,16 @@ class BiMAR_UDet2D(nn.Module):
         return out10
     
     
-class BiMAR_UDet3D(BiMAR_UDet2D):
+class R2MidUDet3D(R2MidUDet2D):
     
     def __init__(self, channels, img_channels=1, height=5, length=2):
         super().__init__(channels, img_channels=img_channels, height=height, length=length)
         
-        self.marel1 = MAREL3D(img_channels, channels, 1)
-        self.marel2 = MAREL3D(channels, channels * 2, 2)
-        self.marel3 = MAREL3D(channels * 2, channels * 4, 2)
-        self.marel4 = MAREL3D(channels * 4, channels * 8, 2)
-        self.marmel5 = MAREL3D(channels * 8, channels * 16, 2)
+        self.rrel1 = RREL3D(img_channels, channels, 1)
+        self.rrel2 = RREL3D(channels, channels * 2, 2)
+        self.rrel3 = RREL3D(channels * 2, channels * 4, 2)
+        self.rrel4 = RREL3D(channels * 4, channels * 8, 2)
+        self.rrel5 = RREL3D(channels * 8, channels * 16, 2)
         
         self.rrdl6 = RRDL3D(channels * 16, channels * 8, 2)
         self.rrdl7 = RRDL3D(channels * 8, channels * 4, 2)
