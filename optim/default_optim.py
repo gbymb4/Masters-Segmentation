@@ -19,7 +19,7 @@ from postprocessing import (
     stitch_tiles
 )
 from projectio import get_dataset_res
-from .loss import CompositeLoss
+from .loss import CompositeLoss#, TopoLoss
 from .metrics import compute_all_metrics
 
 class DefaultOptimizer:
@@ -98,6 +98,7 @@ class DefaultOptimizer:
             epochs=epochs,
             device=self.device
         )
+        # criterion = TopoLoss(device=self.device)
         
         dataset_res = H, W = get_dataset_res(self.train_loader.dataset)
         tile_size = self.train_loader.dataset.tile_size

@@ -8,7 +8,7 @@ model_arguments:
   channels: 32
   img_channels: 3
 optimizer_arguments:
-  epochs: 500
+  epochs: 300
   lr: 0.0001
   valid_freq: 1
   wbce_weight: 0.999
