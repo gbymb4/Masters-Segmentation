@@ -10,7 +10,8 @@ from projectio.loading import (
     DRIVEDataset,
     STAREDataset,
     IOSTARDataset,
-    HRFDataset
+    HRFDataset,
+    CHASEDB1Dataset
 )
 
 __ctc_datasets__ = [
@@ -34,6 +35,8 @@ def get_dataset_type(dataset):
         dataset_type = IOSTARDataset
     elif dataset == 'HRF':
         dataset_type = HRFDataset
+    elif dataset == 'CHASEDB1':
+        dataset_type = CHASEDB1Dataset
     else:
         raise ValueError(f'invalid dataset "{dataset}" in config file')
         
@@ -52,5 +55,7 @@ def get_dataset_res(dataset):
         return [1024, 1024]
     elif isinstance(dataset, HRFDataset):
         return [3304, 2336]
+    elif isinstance(dataset, CHASEDB1Dataset):
+        return [960, 999]
     else:
         raise ValueError(f'invalid object instance "{type(dataset)}"')

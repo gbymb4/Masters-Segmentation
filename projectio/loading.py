@@ -790,3 +790,141 @@ class HRFDataset(Dataset):
         return len(self.imgs)
     
     
+
+class CHASEDB1Dataset(Dataset):
+    
+    def __init__(
+        self, 
+        _, 
+        partition, 
+        device='cpu', 
+        tile_size=48,
+        train_frac=0.9,
+        valid_frac=0.05,
+        test_frac=0.05,
+        load_limit=None
+    ):
+        assert round(train_frac + valid_frac + test_frac, 3) == 1.0
+        
+        root_dir = DATA_ROOT
+        
+        self.partition = partition
+        self.device = device
+        self.tile_size = tile_size
+        
+        data_root = os.path.join(root_dir, 'CHASEDB1')
+        
+        img_fps = []
+        seg1_fps = []
+        seg2_fps = []
+        
+        for fp in sorted(os.listdir(data_root)):
+            if len(fp) == 13:
+                img_fps.append(os.path.join(data_root, fp))
+            elif int(fp[10]) == 1:
+                seg1_fps.append(os.path.join(data_root, fp))
+            elif int(fp[10]) == 2:
+                seg2_fps.append(os.path.join(data_root, fp))
+            else:
+                raise ValueError(f'encountered unknown file "{fp}" in CHASE_DB1 dataset.')
+            
+        img_fps = sorted(img_fps)
+        seg1_fps = sorted(seg1_fps)
+        seg2_fps = sorted(seg2_fps)
+        
+        num_imgs = len(img_fps)
+        
+        if self.partition == 'train':
+            start_idx = 0
+            end_idx = int(num_imgs * train_frac)
+        
+        elif self.partition == 'valid':
+            start_idx = int(num_imgs * train_frac)
+            end_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            
+        elif self.partition == 'test':
+            start_idx = int(num_imgs * round(train_frac + valid_frac, 3))
+            end_idx = num_imgs
+        
+        elif self.partition == 'eval':
+            raise ValueError('"eval" partition not supported for STAREDataset.')
+        
+        filtered_img_fps = img_fps[start_idx : end_idx]
+        filtered_seg1_fps = seg1_fps[start_idx : end_idx]
+        filtered_seg2_fps = seg2_fps[start_idx : end_idx]
+        
+        if load_limit is not None:
+            filtered_img_fps = filtered_img_fps[:load_limit]
+            filtered_seg1_fps = seg1_fps[:load_limit]
+            filtered_seg2_fps = seg2_fps[:load_limit]
+        
+        self.imgs, self.segs = self.__load_ppms(
+            filtered_img_fps,
+            filtered_seg1_fps,
+            filtered_seg2_fps
+        )
+        
+        
+        
+    def __load_ppms(self, img_fps, seg1_fps, seg2_fps):
+        imgs, segs = [], []
+        
+        for img_fp, seg1_fp, seg2_fp in zip(img_fps, seg1_fps, seg2_fps):
+            img = sio.imread(img_fp) / 255
+            
+            seg1 = sio.imread(seg1_fp)
+            seg2 = sio.imread(seg2_fp)
+             
+            seg1 = seg1 > 0
+            seg2 = seg2 > 0
+            
+            seg = seg1 | seg2
+            seg = seg[..., np.newaxis]
+            seg = lcm_pad(seg, lcm=self.tile_size)
+            seg = tile_split(seg, self.tile_size)
+            seg = seg.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            seg = get_dummy_markers(seg)
+            seg = torch.tensor(seg).long().to(self.device)
+            
+            segs.append(seg)
+
+            img = lcm_pad(img, lcm=self.tile_size)
+            img = tile_split(img, self.tile_size)
+            img = img.transpose(0, 3, 2, 1)[:, :, np.newaxis, ...]
+            img = torch.tensor(img).float().to(self.device)
+            
+            imgs.append(img)
+        
+        imgs = torch.cat(imgs, 0)
+        segs = torch.cat(segs, 0)
+        
+        return imgs, segs
+    
+    
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        xs = self.imgs[idx]
+        
+        augment = self.partition == 'train'
+        
+        if self.partition != 'eval':
+            ys = self.segs[idx]
+            
+            if augment:
+                xs, ys = random_hflip(xs, ys)
+                xs, ys = random_vflip(xs, ys)
+                xs, ys = random_rotate(xs, ys)
+                xs, ys = random_roll(xs, ys)
+
+            return xs, ys    
+        
+        else:
+            return xs
+        
+        
+        
+    def __len__(self):
+        return len(self.imgs)
