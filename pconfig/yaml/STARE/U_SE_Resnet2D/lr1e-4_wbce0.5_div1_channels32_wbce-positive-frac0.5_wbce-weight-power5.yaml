@@ -5,8 +5,10 @@ device: cuda
 id: lr1e-4_wbce0.5_div1_channels32_wbce-positive-frac0.5_wbce-weight-power5
 checkpoint_freq: 100
 model_arguments:
-  channels: 32
-  img_channels: 3
+  in_channels: 3
+  classes: 2
+  activation: sigmoid
+  encoder_weights: ~
 optimizer_arguments:
   epochs: 300
   lr: 0.0001
