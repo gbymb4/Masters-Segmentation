@@ -225,7 +225,7 @@ class TopoLoss:
         
         
     
-    def __call__(self, pred, true):
+    def __call__(self, pred, true, _):
         loss = 0
             
         pred = pred.reshape(-1, *pred.shape[-2:])
@@ -272,7 +272,7 @@ class TopoLoss:
                              x:min(x + topo_size, likelihood.shape[1])]
                 gt_patch = gt[y:min(y + topo_size, gt.shape[0]),
                              x:min(x + topo_size, gt.shape[1])]
-    
+                
                 if(np.min(lh_patch) == 1 or np.max(lh_patch) == 0): continue
                 if(np.min(gt_patch) == 1 or np.max(gt_patch) == 0): continue
     
@@ -284,7 +284,12 @@ class TopoLoss:
                 if not(pairs_lh_pa): continue
                 if not(pairs_lh_gt): continue
     
-                force_list, idx_holes_to_fix, idx_holes_to_remove = self.__compute_dgm_force(pd_lh, pd_gt, pers_thresh=0.03)
+                res = self.__compute_dgm_force(pd_lh, pd_gt, pers_thresh=0.03)
+                
+                if res == False: continue
+                
+                force_list, idx_holes_to_fix, idx_holes_to_remove = res
+        
     
                 if (len(idx_holes_to_fix) > 0 or len(idx_holes_to_remove) > 0):
                     for hole_indx in idx_holes_to_fix:
@@ -359,7 +364,7 @@ class TopoLoss:
     
         Diag_lh = lh_cubic.persistence(homology_coeff_field=2, min_persistence=0)
         pairs_lh = lh_cubic.cofaces_of_persistence_pairs()
-    
+        
         # If the paris is 0, return False to skip
         if (len(pairs_lh[0])==0): return 0, 0, 0, False
     
@@ -367,7 +372,7 @@ class TopoLoss:
         pd_lh = np.array([[lh_vector[pairs_lh[0][0][i][0]], lh_vector[pairs_lh[0][0][i][1]]] for i in range(len(pairs_lh[0][0]))])
         bcp_lh = np.array([[pairs_lh[0][0][i][0]//lh.shape[1], pairs_lh[0][0][i][0]%lh.shape[1]] for i in range(len(pairs_lh[0][0]))])
         dcp_lh = np.array([[pairs_lh[0][0][i][1]//lh.shape[1], pairs_lh[0][0][i][1]%lh.shape[1]] for i in range(len(pairs_lh[0][0]))])
-    
+        
         return pd_lh, bcp_lh, dcp_lh, True
 
 
@@ -401,6 +406,8 @@ class TopoLoss:
             process
     
         """
+        if len(lh_dgm.shape) == 1: return False
+        
         lh_pers = abs(lh_dgm[:, 1] - lh_dgm[:, 0])
         if (gt_dgm.shape[0] == 0):
             gt_pers = None;
@@ -458,10 +465,10 @@ class TopoLoss:
                                              math.sqrt(2.0)
         force_list[idx_holes_to_remove, 1] = -lh_pers[idx_holes_to_remove] / \
                                              math.sqrt(2.0)
-    
+
         if (do_return_perfect):
             return force_list, idx_holes_to_fix, idx_holes_to_remove, idx_holes_perfect
-    
+        
         return force_list, idx_holes_to_fix, idx_holes_to_remove
     
     
