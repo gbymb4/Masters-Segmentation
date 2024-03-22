@@ -75,6 +75,7 @@ class DefaultOptimizer:
         perc_weight=1,
         div_weight=1,
         weight_power=5,
+        accumulation_steps=1,
         verbose=True,
         checkpoint_callback=None,
         init_history = None
@@ -127,36 +128,40 @@ class DefaultOptimizer:
             metrics_dict = {}
 
             for batch in self.train_loader:
-                xs, ys = batch
+                xs_batch, ys_batch = batch
                 
-                xs = xs.to(self.device)
-                ys = ys.to(self.device)
+                xs_batch = xs_batch.to(self.device)
+                ys_batch = ys_batch.to(self.device)
                 
-                batch_size = len(xs)
-
-                optim.zero_grad()
-
-                pred = model(xs)
+                xs_split = torch.tensor_split(xs_batch, accumulation_steps, dim=0)
+                ys_split = torch.tensor_split(ys_batch, accumulation_steps, dim=0)
                 
-                loss = criterion(pred, ys, epoch)
-                loss.backward()
-                train_loss = loss.item()
-
-                post_pred = threshold(pred)
-                
-                ys_segs, ys_markers = split_segs_markers(ys)
-                post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
-                
-                # Betti Error metric not correctly implemented for training
-                metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
-                        
-                for name, score in metric_scores.items():
-                    if name not in metrics_dict.keys():
-                        metrics_dict[name] = score * batch_size
-                    else:
-                        metrics_dict[name] += score * batch_size
-
-                train_num_imgs += len(xs)
+                for xs, ys in zip(xs_split, ys_split):
+                    batch_size = len(xs)
+    
+                    optim.zero_grad()
+    
+                    pred = model(xs)
+                    
+                    loss = criterion(pred, ys, epoch)
+                    loss.backward()
+                    train_loss = loss.item()
+    
+                    post_pred = threshold(pred)
+                    
+                    ys_segs, ys_markers = split_segs_markers(ys)
+                    post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
+                    
+                    # Betti Error metric not correctly implemented for training
+                    metric_scores = compute_all_metrics(post_pred_segs, ys_segs)
+                            
+                    for name, score in metric_scores.items():
+                        if name not in metrics_dict.keys():
+                            metrics_dict[name] = score * batch_size
+                        else:
+                            metrics_dict[name] += score * batch_size
+    
+                    train_num_imgs += len(xs)
 
                 optim.step()
             
@@ -181,58 +186,62 @@ class DefaultOptimizer:
                 seg_buffer, pred_buffer = [], []
     
                 for batch in self.valid_loader:
-                    xs, ys = batch
+                    xs_batch, ys_batch = batch
                     
-                    xs = xs.to(self.device)
-                    ys = ys.to(self.device)
+                    xs_batch = xs_batch.to(self.device)
+                    ys_batch = ys_batch.to(self.device)
                     
-                    batch_size = len(xs)
-
-                    optim.zero_grad()
-
-                    pred = model(xs)
+                    xs_split = torch.tensor_split(xs_batch, accumulation_steps, dim=0)
+                    ys_split = torch.tensor_split(ys_batch, accumulation_steps, dim=0)
                     
-                    loss = criterion(pred, ys, epoch)
-                    valid_loss = loss.item()
-
-                    ys_segs, ys_markers = split_segs_markers(ys)
-                    
-                    buffer_count += batch_size
-                    full_buffers = buffer_count // count_threshold
-                    
-                    if full_buffers > 0:
-                        buffer_tail = buffer_count - (count_threshold * full_buffers)
+                    for xs, ys in zip(xs_split, ys_split):
+                        batch_size = len(xs)
+    
+                        optim.zero_grad()
+    
+                        pred = model(xs)
                         
-                        batch_head = batch_size - buffer_tail
-
-                        pred_buffer.append(pred[:batch_head])
-                        seg_buffer.append(ys_segs[:batch_head])
+                        loss = criterion(pred, ys, epoch)
+                        valid_loss = loss.item()
+    
+                        ys_segs, ys_markers = split_segs_markers(ys)
                         
-                        f_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+                        buffer_count += batch_size
+                        full_buffers = buffer_count // count_threshold
                         
-                        f_post_pred = full_postprocess(f_pred_segs)
-                        f_post_pred_segs, f_post_pred_markers = split_segs_markers(f_post_pred)
+                        if full_buffers > 0:
+                            buffer_tail = buffer_count - (count_threshold * full_buffers)
+                            
+                            batch_head = batch_size - buffer_tail
+    
+                            pred_buffer.append(pred[:batch_head])
+                            seg_buffer.append(ys_segs[:batch_head])
+                            
+                            f_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+                            
+                            f_post_pred = full_postprocess(f_pred_segs)
+                            f_post_pred_segs, f_post_pred_markers = split_segs_markers(f_post_pred)
+                            
+                            f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
                         
-                        f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
-                    
-                        metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
-                                
-                        for name, score in metric_scores.items():
-                            if name not in metrics_dict.keys():
-                                metrics_dict[name] = score  * full_buffers
-                            else:
-                                metrics_dict[name] += score * full_buffers
-
-                        valid_num_slides += full_buffers
-                        
-                        pred_buffer = [pred[batch_head:]]
-                        seg_buffer = [ys_segs[batch_head:]]
-                        
-                        buffer_count = buffer_tail
-                        
-                    else:
-                        pred_buffer.append(pred)
-                        seg_buffer.append(ys_segs)
+                            metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
+                                    
+                            for name, score in metric_scores.items():
+                                if name not in metrics_dict.keys():
+                                    metrics_dict[name] = score  * full_buffers
+                                else:
+                                    metrics_dict[name] += score * full_buffers
+    
+                            valid_num_slides += full_buffers
+                            
+                            pred_buffer = [pred[batch_head:]]
+                            seg_buffer = [ys_segs[batch_head:]]
+                            
+                            buffer_count = buffer_tail
+                            
+                        else:
+                            pred_buffer.append(pred)
+                            seg_buffer.append(ys_segs)
 
                 history_record['valid_loss'] = valid_loss
                 history_record['valid_norm_loss'] = valid_loss / valid_num_slides

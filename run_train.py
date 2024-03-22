@@ -36,7 +36,7 @@ def set_seed(seed):
 
 
 
-def dump_test_metrics(model, testloader, dataset, id, device):
+def dump_test_metrics(model, testloader, dataset, id, device, accumulation_steps=1):
     dataset_res = H, W = get_dataset_res(testloader.dataset)
     tile_size = testloader.dataset.tile_size
     I, J = int(np.ceil(H / tile_size)), int(np.ceil(W / tile_size))
@@ -51,53 +51,58 @@ def dump_test_metrics(model, testloader, dataset, id, device):
     seg_buffer, pred_buffer = [], []
 
     for batch in testloader:
-        xs, ys = batch
+        xs_batch, ys_batch = batch
         
-        xs = xs.to(device)
-        ys = ys.to(device)
+        xs_batch = xs_batch.to(device)
+        ys_batch = ys_batch.to(device)
         
-        batch_size = len(xs)
-
-        pred = model(xs)
+        xs_split = torch.tensor_split(xs_batch, accumulation_steps, dim=0)
+        ys_split = torch.tensor_split(ys_batch, accumulation_steps, dim=0)
         
-        ys_segs, ys_markers = split_segs_markers(ys)
+        for xs, ys in zip(xs_split, ys_split):
         
-        buffer_count += batch_size
-        full_buffers = buffer_count // count_threshold
-        
-        if full_buffers > 0:
-            buffer_tail = buffer_count - (count_threshold * full_buffers)
+            batch_size = len(xs)
+    
+            pred = model(xs)
             
-            batch_head = batch_size - buffer_tail
-
-            pred_buffer.append(pred[:batch_head])
-            seg_buffer.append(ys_segs[:batch_head])
+            ys_segs, ys_markers = split_segs_markers(ys)
             
-            f_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+            buffer_count += batch_size
+            full_buffers = buffer_count // count_threshold
             
-            f_post_pred = full_postprocess(f_pred_segs)
-            f_post_pred_segs, f_post_pred_markers = split_segs_markers(f_post_pred)
-
-            f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
-        
-            metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
+            if full_buffers > 0:
+                buffer_tail = buffer_count - (count_threshold * full_buffers)
+                
+                batch_head = batch_size - buffer_tail
+    
+                pred_buffer.append(pred[:batch_head])
+                seg_buffer.append(ys_segs[:batch_head])
+                
+                f_pred_segs = stitch_tiles(pred_buffer, dataset_res)
+                
+                f_post_pred = full_postprocess(f_pred_segs)
+                f_post_pred_segs, f_post_pred_markers = split_segs_markers(f_post_pred)
+    
+                f_ys_segs = stitch_tiles(seg_buffer, dataset_res)
             
-            for name, score in metric_scores.items():
-                if name not in history_record.keys():
-                    history_record[name] = score * full_buffers
-                else:
-                    history_record[name] += score * full_buffers
-
-            test_num_slides += full_buffers
+                metric_scores = compute_all_metrics(f_post_pred_segs, f_ys_segs)
+                
+                for name, score in metric_scores.items():
+                    if name not in history_record.keys():
+                        history_record[name] = score * full_buffers
+                    else:
+                        history_record[name] += score * full_buffers
+    
+                test_num_slides += full_buffers
+                
+                pred_buffer = [pred[batch_head:]]
+                seg_buffer = [ys_segs[batch_head:]]
+                
+                buffer_count = buffer_tail
             
-            pred_buffer = [pred[batch_head:]]
-            seg_buffer = [ys_segs[batch_head:]]
-            
-            buffer_count = buffer_tail
-        
-        else:
-            pred_buffer.append(pred)
-            seg_buffer.append(ys_segs)
+            else:
+                pred_buffer.append(pred)
+                seg_buffer.append(ys_segs)
     
     history_record = {
         f'test_{name}': w_score / test_num_slides for name, w_score in history_record.items()
@@ -245,7 +250,24 @@ def main():
         
     save_history_dict_and_model(dataset, model, id, config_dict, history, len(history))
         
-    dump_test_metrics(model, testloader, dataset, id, device)
+    if 'accumulation_steps' in optim_kwargs.keys():
+        dump_test_metrics(
+            model, 
+            testloader, 
+            dataset, 
+            id, 
+            device, 
+            accumulation_steps=optim_kwargs['accumulation_steps']
+        )
+    else:
+        dump_test_metrics(
+            model, 
+            testloader, 
+            dataset, 
+            id, 
+            device
+        )
+        
     dump_metrics_plots(model, dataset, id, history)
     dump_visualisations(model, dataset, id, validloader, device)
     

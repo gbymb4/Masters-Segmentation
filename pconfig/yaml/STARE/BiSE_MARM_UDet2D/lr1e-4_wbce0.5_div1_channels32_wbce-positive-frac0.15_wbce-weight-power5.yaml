@@ -16,6 +16,7 @@ optimizer_arguments:
   div_weight: 1
   weight_power: 5
   wbce_positive_frac: 0.15
+  accumulation_steps: 2
 dataset_arguments:
   device: cpu
   tile_size: 96
