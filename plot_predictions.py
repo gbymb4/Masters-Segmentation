@@ -9,18 +9,23 @@ import torch, sys, os
 
 from PIL import Image
 from pconfig import parse_config, prepare_config, OUT_DIR
-from projectio import load_test
+from projectio import load_test, get_dataset_type
 from postprocessing import full_postprocess, split_segs_markers
 
 
 def main():
     args = sys.argv[1:]
-    save_freq, dataset, id, *models = args
+    save_freq, dataset, ids, models = args
     
     save_freq = int(save_freq)
     
+    ids = ids.split('|')
+    models = models.split('|')
+    
+    dataset_type = get_dataset_type(dataset)
+    
     testloader = None
-    for model_name in models:
+    for model_name, id in zip(models, ids):
         model_save_root = os.path.join(
             OUT_DIR, 
             dataset.lower(), 
@@ -39,7 +44,7 @@ def main():
         model.to(device)
         
         if testloader is None:
-            testloader = load_test(dataset, dataset_kwargs, dataloader_kwargs)
+            testloader = load_test(dataset, dataset_type, dataset_kwargs, dataloader_kwargs)
 
         test_visuals_root = os.path.join(model_save_root, 'test_visualisations')
         if not os.path.isdir(test_visuals_root):

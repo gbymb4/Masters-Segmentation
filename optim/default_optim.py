@@ -16,10 +16,11 @@ from postprocessing import (
     full_postprocess, 
     threshold, 
     split_segs_markers,
-    stitch_tiles
+    stitch_tiles,
+    use_out_logits
 )
 from projectio import get_dataset_res
-from .loss import CompositeLoss#, TopoLoss
+from .loss import CompositeLoss, TopoLoss, compute_loss
 from .metrics import compute_all_metrics
 
 class DefaultOptimizer:
@@ -143,11 +144,12 @@ class DefaultOptimizer:
     
                     pred = model(xs)
                     
-                    loss = criterion(pred, ys, epoch)
+                    loss = compute_loss(criterion, pred, ys, epoch)
                     loss.backward()
                     train_loss = loss.item()
     
-                    post_pred = threshold(pred)
+                    post_pred = use_out_logits(pred)
+                    post_pred = threshold(post_pred)
                     
                     ys_segs, ys_markers = split_segs_markers(ys)
                     post_pred_segs, post_pred_markers = split_segs_markers(post_pred)
@@ -161,7 +163,7 @@ class DefaultOptimizer:
                         else:
                             metrics_dict[name] += score * batch_size
     
-                    train_num_imgs += len(xs)
+                    train_num_imgs += batch_size
 
                 optim.step()
             
@@ -200,8 +202,9 @@ class DefaultOptimizer:
                         optim.zero_grad()
     
                         pred = model(xs)
+                        pred = use_out_logits(pred)
                         
-                        loss = criterion(pred, ys, epoch)
+                        loss = compute_loss(criterion, pred, ys, epoch)
                         valid_loss = loss.item()
     
                         ys_segs, ys_markers = split_segs_markers(ys)

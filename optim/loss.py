@@ -17,6 +17,19 @@ from torch import nn
 from torchvision.models.resnet import resnet50, ResNet50_Weights
 from skimage import feature
 
+def compute_loss(criterion, preds, true, epoch):
+    if isinstance(preds, list) or isinstance(preds, tuple):
+        loss = 0
+        
+        for pred in preds:
+            loss += criterion(pred, true, epoch)
+            
+        return loss
+    
+    return criterion(preds, true, epoch)
+
+
+
 class SpatialWeightedBCELoss:
 
     def __init__(

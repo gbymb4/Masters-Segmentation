@@ -64,6 +64,14 @@ def full_postprocess(pred, true_threshold=0.5, area_threshold=32):
 
 
 
+def use_out_logits(pred):
+    if isinstance(pred, list) or isinstance(pred, tuple):
+        return pred[0]
+    
+    return pred
+
+
+
 def stitch_tiles(imgs, out_res):    
     if isinstance(imgs, list):
         imgs = torch.cat(imgs, dim=0)

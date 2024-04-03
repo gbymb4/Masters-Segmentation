@@ -11,7 +11,12 @@ import torch, random
 import numpy as np
 
 from optim import DefaultOptimizer, compute_all_metrics
-from postprocessing import full_postprocess, split_segs_markers, stitch_tiles
+from postprocessing import (
+    full_postprocess, 
+    split_segs_markers, 
+    stitch_tiles,
+    use_out_logits
+)
 from projectio import (
     load_train,
     load_valid,
@@ -64,6 +69,7 @@ def dump_test_metrics(model, testloader, dataset, id, device, accumulation_steps
             batch_size = len(xs)
     
             pred = model(xs)
+            pred = use_out_logits(pred)
             
             ys_segs, ys_markers = split_segs_markers(ys)
             

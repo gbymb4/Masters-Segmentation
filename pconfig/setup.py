@@ -20,7 +20,7 @@ from models.unet import (
     MAR_UNet2D, MAR_UNet3D,
     R2MidUDet2D, R2MidUDet3D
 )
-
+from models.sa2net import SA2Net2D
 
 
 
@@ -79,6 +79,8 @@ def prepare_config(
         model = R2MidUDet2D
     elif model_name.lower() == 'r2midudet3d':
         model = R2MidUDet3D
+    elif model_name.lower() == 'sa2net2d':
+        model = SA2Net2D
     
     else:
         raise ValueError(f'invalid model type "{model_name}" in config file')
